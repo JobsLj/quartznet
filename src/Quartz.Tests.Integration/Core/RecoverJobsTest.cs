@@ -8,7 +8,6 @@ using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Listener;
-using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Util;
 
@@ -23,7 +22,7 @@ namespace Quartz.Tests.Integration.Core
         public async Task TestRecoveringRepeatJobWhichIsFiredAndMisfiredAtTheSameTime()
         {
             const string DsName = "recoverJobsTest";
-            DBConnectionManager.Instance.AddConnectionProvider(DsName, new DbProvider("SqlServer-20", TestConstants.DefaultSqlServerConnectionString));
+            DBConnectionManager.Instance.AddConnectionProvider(DsName, new DbProvider(TestConstants.DefaultSqlServerProvider, TestConstants.SqlServerConnectionString));
 
             var jobStore = new JobStoreTX
             {
@@ -68,7 +67,7 @@ namespace Quartz.Tests.Integration.Core
                 connection.Open();
                 using (var command = connection.CreateCommand())
                 {
-                    command.CommandText = "SELECT TRIGGER_STATE from QRTZ_TRIGGERS";
+                    command.CommandText = $"SELECT TRIGGER_STATE from QRTZ_TRIGGERS WHERE SCHED_NAME = '{scheduler.SchedulerName}' AND TRIGGER_NAME='test'";
                     var triggerState = command.ExecuteScalar().ToString();
 
                     // check that trigger is blocked after fail over situation
@@ -114,7 +113,9 @@ namespace Quartz.Tests.Integration.Core
 
             public override string Name => typeof(RecoverJobsTest).Name;
 
-            public override Task JobToBeExecuted(IJobExecutionContext context)
+            public override Task JobToBeExecuted(
+                IJobExecutionContext context,
+                CancellationToken cancellationToken = new CancellationToken())
             {
                 isJobRecovered.Set();
                 return TaskUtil.CompletedTask;
@@ -138,7 +139,7 @@ namespace Quartz.Tests.Integration.Core
                     while (runForever)
                     {
                         await Task.Delay(1000);
-                        log.Info("Tic " + (++tic) + "- " + now);
+                        log.Info("Tic " + ++tic + "- " + now);
                     }
                     log.Info("Stopped - " + now);
                 }

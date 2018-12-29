@@ -1,7 +1,7 @@
 #region License
 
 /*
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -51,7 +51,7 @@ namespace Quartz.Impl
     ///
     /// <para>
     /// <see cref="IJobExecutionContext" /> s are also returned from the
-    /// <see cref="IScheduler.GetCurrentlyExecutingJobs()" />
+    /// <see cref="IScheduler.GetCurrentlyExecutingJobs" />
     /// method. These are the same instances as those past into the jobs that are
     /// currently executing within the scheduler. The exception to this is when your
     /// application is using Quartz remotely (i.e. via remoting or WCF) - in which case you get
@@ -68,35 +68,26 @@ namespace Quartz.Impl
     /// <seealso cref="JobDataMap" />
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-#if BINARY_SERIALIZATION
     [Serializable]
-#endif // BINARY_SERIALIZATION
-    public class JobExecutionContextImpl : ICancellableJobExecutionContext
+    public class JobExecutionContextImpl : ICancellableJobExecutionContext, IDisposable
     {
-#if BINARY_SERIALIZATION
-        [NonSerialized]
-#endif // BINARY_SERIALIZATION
-        private readonly IScheduler scheduler;
-
-#if BINARY_SERIALIZATION
-        [NonSerialized]
-#endif // BINARY_SERIALIZATION
-        private readonly IJob job;
-
         private readonly ITrigger trigger;
         private readonly IJobDetail jobDetail;
         private readonly JobDataMap jobDataMap;
+        [NonSerialized]
+        private readonly IScheduler scheduler;
+        [NonSerialized]
+        private readonly CancellationToken cancellationToken;
 
-        private readonly ICalendar calendar;
-        private readonly bool recovering;
         private int numRefires;
-        private readonly DateTimeOffset? prevFireTimeUtc;
-        private readonly DateTimeOffset? nextFireTimeUtc;
-        private TimeSpan jobRunTime = TimeSpan.MinValue;
-        private object result;
+        private TimeSpan? jobRunTime;
 
+        [NonSerialized]
         private readonly IDictionary<object, object> data = new Dictionary<object, object>();
+        [NonSerialized]
         private readonly CancellationTokenSource cancellationTokenSource;
+        [NonSerialized]
+        private readonly IJob jobInstance;
 
         /// <summary>
         /// Create a JobExecutionContext with the given context data.
@@ -105,27 +96,30 @@ namespace Quartz.Impl
         {
             this.scheduler = scheduler;
             trigger = firedBundle.Trigger;
-            calendar = firedBundle.Calendar;
+            Calendar = firedBundle.Calendar;
             jobDetail = firedBundle.JobDetail;
-            this.job = job;
-            recovering = firedBundle.Recovering;
+            jobInstance = job;
+            Recovering = firedBundle.Recovering;
             FireTimeUtc = firedBundle.FireTimeUtc;
             ScheduledFireTimeUtc = firedBundle.ScheduledFireTimeUtc;
-            prevFireTimeUtc = firedBundle.PrevFireTimeUtc;
-            nextFireTimeUtc = firedBundle.NextFireTimeUtc;
+            PreviousFireTimeUtc = firedBundle.PrevFireTimeUtc;
+            NextFireTimeUtc = firedBundle.NextFireTimeUtc;
 
             jobDataMap = new JobDataMap();
             jobDataMap.PutAll(jobDetail.JobDataMap);
             jobDataMap.PutAll(trigger.JobDataMap);
             cancellationTokenSource = new CancellationTokenSource();
-            CancellationToken = cancellationTokenSource.Token;
+            cancellationToken = cancellationTokenSource.Token;
         }
 
         /// <summary>
         /// Get a handle to the <see cref="IScheduler" /> instance that fired the
         /// <see cref="IJob" />.
         /// </summary>
-        public virtual IScheduler Scheduler => scheduler;
+        public virtual IScheduler Scheduler
+        {
+            get { return scheduler; }
+        }
 
         /// <summary>
         /// Get a handle to the <see cref="ITrigger" /> instance that fired the
@@ -137,13 +131,13 @@ namespace Quartz.Impl
         /// Get a handle to the <see cref="ICalendar" /> referenced by the <see cref="ITrigger" />
         /// instance that fired the <see cref="IJob" />.
         /// </summary>
-        public virtual ICalendar Calendar => calendar;
+        public virtual ICalendar Calendar { get; }
 
         /// <summary>
         /// If the <see cref="IJob" /> is being re-executed because of a 'recovery'
         /// situation, this method will return <see langword="true" />.
         /// </summary>
-        public virtual bool Recovering => recovering;
+        public virtual bool Recovering { get; }
 
         public TriggerKey RecoveringTriggerKey
         {
@@ -201,7 +195,10 @@ namespace Quartz.Impl
         /// interfaces.
         /// </para>
         /// </summary>
-        public virtual IJob JobInstance => job;
+        public virtual IJob JobInstance
+        {
+            get { return jobInstance; }
+        }
 
         /// <summary>
         /// The actual time the trigger fired. For instance the scheduled time may
@@ -210,7 +207,7 @@ namespace Quartz.Impl
         /// </summary>
         /// <returns> Returns the fireTimeUtc.</returns>
         /// <seealso cref="ScheduledFireTimeUtc" />
-        public DateTimeOffset? FireTimeUtc { get; }
+        public DateTimeOffset FireTimeUtc { get; }
 
         /// <summary>
         /// The scheduled time the trigger fired for. For instance the scheduled
@@ -225,13 +222,13 @@ namespace Quartz.Impl
         /// Gets the previous fire time.
         /// </summary>
         /// <value>The previous fire time.</value>
-        public DateTimeOffset? PreviousFireTimeUtc => prevFireTimeUtc;
+        public DateTimeOffset? PreviousFireTimeUtc { get; }
 
         /// <summary>
         /// Gets the next fire time.
         /// </summary>
         /// <value>The next fire time.</value>
-        public DateTimeOffset? NextFireTimeUtc => nextFireTimeUtc;
+        public DateTimeOffset? NextFireTimeUtc { get; }
 
         /// <summary>
         /// Returns the result (if any) that the <see cref="IJob" /> set before its
@@ -256,11 +253,7 @@ namespace Quartz.Impl
         /// execution.
         /// </para>
         /// </remarks>
-        public virtual object Result
-        {
-            get { return result; }
-            set { result = value; }
-        }
+        public virtual object Result { get; set; }
 
         /// <summary>
         /// The amount of time the job ran for.  The returned
@@ -272,15 +265,15 @@ namespace Quartz.Impl
         {
             get
             {
-                if (jobRunTime == TimeSpan.MinValue && FireTimeUtc != null)
+                if (jobRunTime == null)
                 {
                     // we are still in progress, calculate dynamically
-                    return DateTimeOffset.UtcNow - FireTimeUtc.Value;
+                    return DateTimeOffset.UtcNow - FireTimeUtc;
                 }
 
-                return jobRunTime;
+                return jobRunTime.Value;
             }
-            set { jobRunTime = value; }
+            set => jobRunTime = value;
         }
 
         /// <summary>
@@ -328,8 +321,7 @@ namespace Quartz.Impl
         /// </param>
         public virtual object Get(object key)
         {
-            object retValue;
-            data.TryGetValue(key, out retValue);
+            data.TryGetValue(key, out var retValue);
             return retValue;
         }
 
@@ -343,6 +335,14 @@ namespace Quartz.Impl
         /// </summary>
         public string FireInstanceId => ((IOperableTrigger) trigger).FireInstanceId;
 
-        public CancellationToken CancellationToken { get; }
+        public CancellationToken CancellationToken
+        {
+            get { return cancellationToken; }
+        }
+
+        public void Dispose()
+        {
+            cancellationTokenSource?.Dispose();
+        }
     }
 }

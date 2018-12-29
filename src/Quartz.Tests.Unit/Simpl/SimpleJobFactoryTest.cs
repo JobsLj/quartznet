@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+
 using NUnit.Framework;
 
 using Quartz.Simpl;
@@ -27,22 +28,17 @@ namespace Quartz.Tests.Unit.Simpl
 
         public class DisposableJob : IJob, IDisposable
         {
-            private bool wasDisposed;
-
             public Task Execute(IJobExecutionContext context)
             {
-                return Task.FromResult(0);
+                return TaskUtil.CompletedTask;
             }
 
             public void Dispose()
             {
-                wasDisposed = true;
+                WasDisposed = true;
             }
 
-            public bool WasDisposed
-            {
-                get { return wasDisposed; }
-            }
+            public bool WasDisposed { get; private set; }
         }
     }
 }

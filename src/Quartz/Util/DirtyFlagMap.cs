@@ -1,7 +1,7 @@
 #region License
 
 /*
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -22,11 +22,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-
-#if BINARY_SERIALIZATION
 using System.Runtime.Serialization;
 using System.Security;
-#endif // BINARY_SERIALIZATION
 
 namespace Quartz.Util
 {
@@ -36,20 +33,13 @@ namespace Quartz.Util
     /// </summary>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-#if BINARY_SERIALIZATION
     [Serializable]
-#endif // BINARY_SERIALIZATION
-    public class DirtyFlagMap<TKey, TValue> :
-        IDictionary<TKey, TValue>,
-        IDictionary
-#if BINARY_SERIALIZATION
-        ,ISerializable
-#endif // BINARY_SERIALIZATION
+    public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, ISerializable
     {
         // JsonProperty attributes are used since Json.Net's default behavior is to serialize public members and the properties wrapping these fields are read-only
         private bool dirty;
+
         private Dictionary<TKey, TValue> map;
-        private readonly object syncRoot = new object();
 
         /// <summary>
         /// Create a DirtyFlagMap that 'wraps' a <see cref="Hashtable" />.
@@ -68,13 +58,12 @@ namespace Quartz.Util
             map = new Dictionary<TKey, TValue>(initialCapacity);
         }
 
-#if BINARY_SERIALIZATION // NetCore versions of Quartz can't use old serialized data.
-    // Make sure that future DirtyFlagMap version changes are done in a DCS-friendly way (with [OnSerializing] and [OnDeserialized] methods).
-    /// <summary>
-    /// Serialization constructor.
-    /// </summary>
-    /// <param name="info"></param>
-    /// <param name="context"></param>
+        // Make sure that future DirtyFlagMap version changes are done in a DCS-friendly way (with [OnSerializing] and [OnDeserialized] methods).
+        /// <summary>
+        /// Serialization constructor.
+        /// </summary>
+        /// <param name="info"></param>
+        /// <param name="context"></param>
         protected DirtyFlagMap(SerializationInfo info, StreamingContext context)
         {
             int version;
@@ -86,7 +75,6 @@ namespace Quartz.Util
             {
                 version = 0;
             }
-
 
             string prefix = "";
             if (version < 1)
@@ -105,7 +93,7 @@ namespace Quartz.Util
             switch (version)
             {
                 case 0:
-                    object o = info.GetValue(prefix + "map", typeof (object));
+                    object o = info.GetValue(prefix + "map", typeof(object));
                     Hashtable oldMap = o as Hashtable;
                     if (oldMap != null)
                     {
@@ -126,13 +114,12 @@ namespace Quartz.Util
                     }
                     break;
                 case 1:
-                    dirty = (bool) info.GetValue("dirty", typeof (bool));
-                    map = (Dictionary<TKey, TValue>) info.GetValue("map", typeof (Dictionary<TKey, TValue>));
+                    dirty = (bool) info.GetValue("dirty", typeof(bool));
+                    map = (Dictionary<TKey, TValue>) info.GetValue("map", typeof(Dictionary<TKey, TValue>));
                     break;
                 default:
                     throw new NotSupportedException("Unknown serialization version");
             }
-
         }
 
         [SecurityCritical]
@@ -142,32 +129,22 @@ namespace Quartz.Util
             info.AddValue("dirty", dirty);
             info.AddValue("map", map);
         }
-#endif // BINARY_SERIALIZATION
 
         /// <summary>
         /// Determine whether the <see cref="IDictionary" /> is flagged dirty.
         /// </summary>
-        public virtual bool Dirty
-        {
-            get { return dirty; }
-        }
+        public virtual bool Dirty => dirty;
 
         /// <summary>
         /// Get a direct handle to the underlying Map.
         /// </summary>
-        public virtual IDictionary<TKey, TValue> WrappedMap
-        {
-            get { return map; }
-        }
+        public virtual IDictionary<TKey, TValue> WrappedMap => map;
 
         /// <summary>
         /// Gets a value indicating whether this instance is empty.
         /// </summary>
         /// <value><c>true</c> if this instance is empty; otherwise, <c>false</c>.</value>
-        public virtual bool IsEmpty
-        {
-            get { return (map.Count == 0); }
-        }
+        public virtual bool IsEmpty => map.Count == 0;
 
         #region ICloneable Members
 
@@ -212,14 +189,13 @@ namespace Quartz.Util
         }
 
         /// <summary>
-        /// Gets or sets the <see cref="Object"/> with the specified key.
+        /// Gets or sets the <see cref="object"/> with the specified key.
         /// </summary>
         public virtual TValue this[TKey key]
         {
             get
             {
-                TValue temp;
-                map.TryGetValue(key, out temp);
+                map.TryGetValue(key, out var temp);
                 return temp;
             }
             set
@@ -239,29 +215,17 @@ namespace Quartz.Util
         /// elements contained in the <see cref="T:System.Collections.ICollection"/>.
         /// </summary>
         /// <value></value>
-        public virtual int Count
-        {
-            get { return map.Count; }
-        }
+        public virtual int Count => map.Count;
 
-        ICollection IDictionary.Keys
-        {
-            get { return map.Keys; }
-        }
+        ICollection IDictionary.Keys => map.Keys;
 
-        ICollection IDictionary.Values
-        {
-            get { return map.Values; }
-        }
+        ICollection IDictionary.Values => map.Values;
 
         /// <summary>
         /// When implemented by a class, gets an <see cref="T:System.Collections.ICollection"/> containing the values in the <see cref="T:System.Collections.IDictionary"/>.
         /// </summary>
         /// <value></value>
-        public virtual ICollection<TValue> Values
-        {
-            get { return map.Values; }
-        }
+        public virtual ICollection<TValue> Values => map.Values;
 
         public void Add(KeyValuePair<TKey, TValue> item)
         {
@@ -306,8 +270,8 @@ namespace Quartz.Util
 
         object IDictionary.this[object key]
         {
-            get { return this[(TKey) key]; }
-            set { this[(TKey) key] = (TValue) value; }
+            get => this[(TKey) key];
+            set => this[(TKey) key] = (TValue) value;
         }
 
         public bool Contains(KeyValuePair<TKey, TValue> item)
@@ -426,40 +390,28 @@ namespace Quartz.Util
         /// When implemented by a class, gets an <see cref="T:System.Collections.ICollection"/> containing the keys of the <see cref="T:System.Collections.IDictionary"/>.
         /// </summary>
         /// <value></value>
-        public virtual ICollection<TKey> Keys
-        {
-            get { return map.Keys; }
-        }
+        public virtual ICollection<TKey> Keys => map.Keys;
 
         /// <summary>
         /// When implemented by a class, gets a value indicating whether the <see cref="T:System.Collections.IDictionary"/>
         /// is read-only.
         /// </summary>
         /// <value></value>
-        public virtual bool IsReadOnly
-        {
-            get { return false; }
-        }
+        public virtual bool IsReadOnly => false;
 
         /// <summary>
         /// When implemented by a class, gets a value indicating whether the <see cref="T:System.Collections.IDictionary"/>
         /// has a fixed size.
         /// </summary>
         /// <value></value>
-        public virtual bool IsFixedSize
-        {
-            get { return false; }
-        }
+        public virtual bool IsFixedSize => false;
 
         /// <summary>
         /// When implemented by a class, gets an object that
         /// can be used to synchronize access to the <see cref="T:System.Collections.ICollection"/>.
         /// </summary>
         /// <value></value>
-        public virtual object SyncRoot
-        {
-            get { return syncRoot; }
-        }
+        public virtual object SyncRoot { get; } = new object();
 
         /// <summary>
         /// When implemented by a class, gets a value
@@ -467,10 +419,7 @@ namespace Quartz.Util
         /// (thread-safe).
         /// </summary>
         /// <value></value>
-        public virtual bool IsSynchronized
-        {
-            get { return false; }
-        }
+        public virtual bool IsSynchronized => false;
 
         #endregion
 
@@ -582,8 +531,7 @@ namespace Quartz.Util
         public virtual object Put(TKey key, TValue val)
         {
             dirty = true;
-            TValue tempObject;
-            map.TryGetValue(key, out tempObject);
+            map.TryGetValue(key, out var tempObject);
             map[key] = val;
             return tempObject;
         }

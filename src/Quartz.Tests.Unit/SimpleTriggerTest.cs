@@ -1,28 +1,28 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
 
 using System;
-#if FAKE_IT_EASY
+
 using FakeItEasy;
-#endif
+
 using NUnit.Framework;
 
 using Quartz.Impl.Calendar;
@@ -33,17 +33,12 @@ using Quartz.Spi;
 namespace Quartz.Tests.Unit
 {
     /// <summary>
-    /// Unit test for SimpleTrigger serialization backwards compatibility. 
+    /// Unit test for SimpleTrigger serialization backwards compatibility.
     /// </summary>
-#if BINARY_SERIALIZATION
     [TestFixture(typeof(BinaryObjectSerializer))]
-#endif
     [TestFixture(typeof(JsonObjectSerializer))]
-    public class SimpleTriggerTest : SerializationTestSupport
+    public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
     {
-        private static readonly string[] Versions = {"2.0"};
-
-        //private static TimeZone EST_TIME_ZONE = TimeZone.CurrentTimeZone; 
         private static readonly DateTimeOffset StartTime;
         private static readonly DateTimeOffset EndTime;
 
@@ -64,7 +59,7 @@ namespace Quartz.Tests.Unit
         /// tests, and against which to validate deserialized object.
         /// </summary>
         /// <returns></returns>
-        protected override object GetTargetObject()
+        protected override SimpleTriggerImpl GetTargetObject()
         {
             JobDataMap jobDataMap = new JobDataMap();
             jobDataMap.Put("A", "B");
@@ -75,45 +70,26 @@ namespace Quartz.Tests.Unit
             t.CalendarName = "MyCalendar";
             t.Description = "SimpleTriggerDesc";
             t.JobDataMap = jobDataMap;
-            t.MisfireInstruction = (MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount);
+            t.MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount;
 
             return t;
         }
 
-        /// <summary>
-        /// Get the Quartz versions for which we should verify
-        /// serialization backwards compatibility.
-        /// </summary>
-        /// <returns></returns>
-        protected override string[] GetVersions()
+        protected override void VerifyMatch(SimpleTriggerImpl original, SimpleTriggerImpl deserialized)
         {
-            return Versions;
-        }
-
-        /// <summary>
-        /// Verify that the target object and the object we just deserialized 
-        /// match.
-        /// </summary>
-        /// <param name="target"></param>
-        /// <param name="deserialized"></param>
-        protected override void VerifyMatch(object target, object deserialized)
-        {
-            SimpleTriggerImpl targetSimpleTrigger = (SimpleTriggerImpl) target;
-            SimpleTriggerImpl deserializedSimpleTrigger = (SimpleTriggerImpl) deserialized;
-
-            Assert.IsNotNull(deserializedSimpleTrigger);
-            Assert.AreEqual(targetSimpleTrigger.Name, deserializedSimpleTrigger.Name);
-            Assert.AreEqual(targetSimpleTrigger.Group, deserializedSimpleTrigger.Group);
-            Assert.AreEqual(targetSimpleTrigger.JobName, deserializedSimpleTrigger.JobName);
-            Assert.AreEqual(targetSimpleTrigger.JobGroup, deserializedSimpleTrigger.JobGroup);
-            Assert.AreEqual(targetSimpleTrigger.StartTimeUtc, deserializedSimpleTrigger.StartTimeUtc);
-            Assert.AreEqual(targetSimpleTrigger.EndTimeUtc, deserializedSimpleTrigger.EndTimeUtc);
-            Assert.AreEqual(targetSimpleTrigger.RepeatCount, deserializedSimpleTrigger.RepeatCount);
-            Assert.AreEqual(targetSimpleTrigger.RepeatInterval, deserializedSimpleTrigger.RepeatInterval);
-            Assert.AreEqual(targetSimpleTrigger.CalendarName, deserializedSimpleTrigger.CalendarName);
-            Assert.AreEqual(targetSimpleTrigger.Description, deserializedSimpleTrigger.Description);
-            Assert.AreEqual(targetSimpleTrigger.JobDataMap, deserializedSimpleTrigger.JobDataMap);
-            Assert.AreEqual(targetSimpleTrigger.MisfireInstruction, deserializedSimpleTrigger.MisfireInstruction);
+            Assert.IsNotNull(deserialized);
+            Assert.AreEqual(original.Name, deserialized.Name);
+            Assert.AreEqual(original.Group, deserialized.Group);
+            Assert.AreEqual(original.JobName, deserialized.JobName);
+            Assert.AreEqual(original.JobGroup, deserialized.JobGroup);
+            Assert.AreEqual(original.StartTimeUtc, deserialized.StartTimeUtc);
+            Assert.AreEqual(original.EndTimeUtc, deserialized.EndTimeUtc);
+            Assert.AreEqual(original.RepeatCount, deserialized.RepeatCount);
+            Assert.AreEqual(original.RepeatInterval, deserialized.RepeatInterval);
+            Assert.AreEqual(original.CalendarName, deserialized.CalendarName);
+            Assert.AreEqual(original.Description, deserialized.Description);
+            Assert.AreEqual(original.JobDataMap, deserialized.JobDataMap);
+            Assert.AreEqual(original.MisfireInstruction, deserialized.MisfireInstruction);
         }
 
         [Test]
@@ -157,19 +133,19 @@ namespace Quartz.Tests.Unit
             SimpleTriggerImpl simpleTrigger = new SimpleTriggerImpl();
 
             // Make sure empty sub-objects are cloned okay
-            ITrigger clone = (ITrigger) simpleTrigger.Clone();
+            ITrigger clone = simpleTrigger.Clone();
             Assert.AreEqual(0, clone.JobDataMap.Count);
 
             // Make sure non-empty sub-objects are cloned okay
             simpleTrigger.JobDataMap.Put("K1", "V1");
             simpleTrigger.JobDataMap.Put("K2", "V2");
-            clone = (ITrigger) simpleTrigger.Clone();
+            clone = simpleTrigger.Clone();
             Assert.AreEqual(2, clone.JobDataMap.Count);
             Assert.AreEqual("V1", clone.JobDataMap.Get("K1"));
             Assert.AreEqual("V2", clone.JobDataMap.Get("K2"));
 
-            // Make sure sub-object collections have really been cloned by ensuring 
-            // their modification does not change the source Trigger 
+            // Make sure sub-object collections have really been cloned by ensuring
+            // their modification does not change the source Trigger
             clone.JobDataMap.Remove("K1");
             Assert.AreEqual(1, clone.JobDataMap.Count);
 
@@ -239,7 +215,6 @@ namespace Quartz.Tests.Unit
             }
         }
 
-#if FAKE_IT_EASY
         [Test]
         public void ShouldRemoveTriggerIfNotGoingToFireAgain()
         {
@@ -252,6 +227,5 @@ namespace Quartz.Tests.Unit
             var instruction = trigger.ExecutionComplete(A.Fake<IJobExecutionContext>(), new JobExecutionException());
             Assert.That(instruction, Is.EqualTo(SchedulerInstruction.DeleteTrigger));
         }
-#endif
     }
 }

@@ -1,7 +1,7 @@
 #region License
 
 /*
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -22,6 +22,7 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+
 using Quartz.Logging;
 using Quartz.Spi;
 
@@ -55,7 +56,7 @@ namespace Quartz.Simpl
         /// Gets the log.
         /// </summary>
         /// <value>The log.</value>
-        protected virtual ILog Log { get; }
+        private ILog Log { get; }
 
         /// <summary>
         /// Gets the size of the pool.
@@ -84,7 +85,7 @@ namespace Quartz.Simpl
         }
 
         /// <summary>
-        /// Called by the QuartzScheduler before the <see cref="ThreadPool"/> is
+        /// Called by the QuartzScheduler before the thread pool is
         /// used, in order to give the it a chance to Initialize.
         /// </summary>
         public virtual void Initialize()
@@ -92,7 +93,7 @@ namespace Quartz.Simpl
         }
 
         /// <summary>
-        /// Called by the QuartzScheduler to inform the <see cref="ThreadPool"/>
+        /// Called by the QuartzScheduler to inform the thread pool
         /// that it should free up all of it's resources because the scheduler is
         /// shutting down.
         /// </summary>

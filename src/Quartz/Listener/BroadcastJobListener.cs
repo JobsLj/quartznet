@@ -1,7 +1,7 @@
 #region License
 
 /* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -21,8 +21,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+
+using Quartz.Logging;
 
 namespace Quartz.Listener
 {
@@ -43,6 +45,7 @@ namespace Quartz.Listener
     public class BroadcastJobListener : IJobListener
     {
         private readonly List<IJobListener> listeners;
+        private readonly ILog log;
 
         /// <summary>
         /// Construct an instance with the given name.
@@ -53,12 +56,9 @@ namespace Quartz.Listener
         /// <param name="name">the name of this instance</param>
         public BroadcastJobListener(string name)
         {
-            if (name == null)
-            {
-                throw new ArgumentNullException(nameof(name), "Listener name cannot be null!");
-            }
-            Name = name;
+            Name = name ?? throw new ArgumentNullException(nameof(name), "Listener name cannot be null!");
             listeners = new List<IJobListener>();
+            log = LogProvider.GetLogger(GetType());
         }
 
         /// <summary>
@@ -98,19 +98,44 @@ namespace Quartz.Listener
 
         public IReadOnlyList<IJobListener> Listeners => listeners;
 
-        public Task JobToBeExecuted(IJobExecutionContext context)
+        public Task JobToBeExecuted(
+            IJobExecutionContext context, 
+            CancellationToken cancellationToken = default)
         {
-            return Task.WhenAll(listeners.Select(l => l.JobToBeExecuted(context)));
+            return IterateListenersInGuard(l => l.JobToBeExecuted(context, cancellationToken), nameof(JobToBeExecuted));
         }
 
-        public Task JobExecutionVetoed(IJobExecutionContext context)
+        public Task JobExecutionVetoed(
+            IJobExecutionContext context,
+            CancellationToken cancellationToken = default)
         {
-            return Task.WhenAll(listeners.Select(l => l.JobExecutionVetoed(context)));
+            return IterateListenersInGuard(l => l.JobExecutionVetoed(context, cancellationToken), nameof(JobExecutionVetoed));
         }
 
-        public Task JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
+        public Task JobWasExecuted(
+            IJobExecutionContext context, 
+            JobExecutionException jobException,
+            CancellationToken cancellationToken = default)
         {
-            return Task.WhenAll(listeners.Select(l => l.JobWasExecuted(context, jobException)));
+            return IterateListenersInGuard(l => l.JobWasExecuted(context, jobException, cancellationToken), nameof(JobWasExecuted));
+        }
+
+        private async Task IterateListenersInGuard(Func<IJobListener, Task> action, string methodName)
+        {
+            foreach (var listener in listeners)
+            {
+                try
+                {
+                    await action(listener).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    if (log.IsErrorEnabled())
+                    {
+                        log.ErrorException($"Listener {listener.Name} - method {methodName} raised an exception: {e.Message}", e);
+                    }
+                }
+            }
         }
     }
 }

@@ -36,7 +36,7 @@ namespace Quartz.Impl.AdoJobStore
 
         private async Task Run()
         {
-            CancellationToken token = cancellationTokenSource.Token;
+            var token = cancellationTokenSource.Token;
             while (!token.IsCancellationRequested)
             {
                 token.ThrowIfCancellationRequested();
@@ -55,7 +55,7 @@ namespace Quartz.Impl.AdoJobStore
                 TimeSpan timeToSleep = TimeSpan.FromMilliseconds(50); // At least a short pause to help balance threads
                 if (!recoverMisfiredJobsResult.HasMoreMisfiredTriggers)
                 {
-                    timeToSleep = jobStoreSupport.MisfireThreshold - (SystemTime.UtcNow() - sTime);
+                    timeToSleep = jobStoreSupport.MisfireHandlerFrequency - (SystemTime.UtcNow() - sTime);
                     if (timeToSleep <= TimeSpan.Zero)
                     {
                         timeToSleep = TimeSpan.FromMilliseconds(50);
@@ -90,7 +90,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 log.Debug("Scanning for misfires...");
 
-                RecoverMisfiredJobsResult res = await jobStoreSupport.DoRecoverMisfires(requestorId).ConfigureAwait(false);
+                RecoverMisfiredJobsResult res = await jobStoreSupport.DoRecoverMisfires(requestorId, CancellationToken.None).ConfigureAwait(false);
                 numFails = 0;
                 return res;
             }

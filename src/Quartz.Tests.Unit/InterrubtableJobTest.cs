@@ -1,6 +1,6 @@
 #region License
 /*
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -18,6 +18,7 @@
 #endregion
 
 using System.Collections.Specialized;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -106,7 +107,7 @@ namespace Quartz.Tests.Unit
 
             Assert.AreEqual(1, executingJobs.Count, "Number of executing jobs should be 1 ");
 
-            IJobExecutionContext jec = executingJobs[0];
+            IJobExecutionContext jec = executingJobs.First();
 
             bool interruptResult = await sched.Interrupt(jec.FireInstanceId);
 

@@ -1,27 +1,26 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
 
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
 
 using Quartz.Impl.Matchers;
 using Quartz.Spi;
@@ -52,28 +51,28 @@ namespace Quartz.Simpl
 
         int ThreadPoolSize { get; }
 
-        Task Clear();
+        void Clear();
 
-        IReadOnlyList<IJobExecutionContext> CurrentlyExecutingJobs { get; }
+        IReadOnlyCollection<IJobExecutionContext> CurrentlyExecutingJobs { get; }
 
         /// <summary>
         /// Starts this instance.
         /// </summary>
-        Task Start();
+        void Start();
 
-        Task StartDelayed(TimeSpan delay);
+        void StartDelayed(TimeSpan delay);
 
         /// <summary>
         /// Standbies this instance.
         /// </summary>
-        Task Standby();
+        void Standby();
 
         /// <summary>
         /// Shutdowns this instance.
         /// </summary>
-        Task Shutdown();
+        void Shutdown();
 
-        Task Shutdown(bool waitForJobsToComplete);
+        void Shutdown(bool waitForJobsToComplete);
 
         DateTimeOffset? RunningSince { get; }
 
@@ -83,100 +82,96 @@ namespace Quartz.Simpl
 
         bool Clustered { get; }
 
-        Task<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger);
+        DateTimeOffset ScheduleJob(IJobDetail jobDetail, ITrigger trigger);
 
-        Task<DateTimeOffset> ScheduleJob(ITrigger trigger);
+        DateTimeOffset ScheduleJob(ITrigger trigger);
 
-        Task AddJob(IJobDetail jobDetail, bool replace);
+        void AddJob(IJobDetail jobDetail, bool replace);
 
-        Task AddJob(IJobDetail jobDetail, bool replace, bool storeNonDurableWhileAwaitingScheduling);
+        void AddJob(IJobDetail jobDetail, bool replace,bool storeNonDurableWhileAwaitingScheduling);
 
         /// <summary>
         /// returns true if the given JobGroup
         /// is paused
         /// </summary>
-        /// <param name="groupName"></param>
-        /// <returns></returns>
-        Task<bool> IsJobGroupPaused(string groupName);
+        bool IsJobGroupPaused(string groupName);
 
         /// <summary>
         /// returns true if the given TriggerGroup
         /// is paused
         /// </summary>
-        /// <param name="groupName"></param>
-        /// <returns></returns>
-        Task<bool> IsTriggerGroupPaused(string groupName);
+        bool IsTriggerGroupPaused(string groupName);
 
-        Task<bool> DeleteJob(JobKey jobKey);
+        bool DeleteJob(JobKey jobKey);
 
-        Task<bool> UnscheduleJob(TriggerKey triggerKey);
+        bool UnscheduleJob(TriggerKey triggerKey);
 
-        Task<DateTimeOffset?> RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger);
+        DateTimeOffset? RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger);
 
-        Task TriggerJob(JobKey jobKey, JobDataMap data);
+        void TriggerJob(JobKey jobKey, JobDataMap data);
 
-        Task TriggerJob(IOperableTrigger trig);
+        void TriggerJob(IOperableTrigger trig);
 
-        Task PauseTrigger(TriggerKey triggerKey);
+        void PauseTrigger(TriggerKey triggerKey);
 
-        Task PauseTriggers(GroupMatcher<TriggerKey> matcher);
+        void PauseTriggers(GroupMatcher<TriggerKey> matcher);
 
-        Task PauseJob(JobKey jobKey);
+        void PauseJob(JobKey jobKey);
 
-        Task PauseJobs(GroupMatcher<JobKey> matcher);
+        void PauseJobs(GroupMatcher<JobKey> matcher);
 
-        Task ResumeTrigger(TriggerKey triggerKey);
+        void ResumeTrigger(TriggerKey triggerKey);
 
-        Task ResumeTriggers(GroupMatcher<TriggerKey> matcher);
+        void ResumeTriggers(GroupMatcher<TriggerKey> matcher);
 
-        Task<ISet<string>> GetPausedTriggerGroups();
+        IReadOnlyCollection<string> GetPausedTriggerGroups();
 
-        Task ResumeJob(JobKey jobKey);
+        void ResumeJob(JobKey jobKey);
 
-        Task ResumeJobs(GroupMatcher<JobKey> matcher);
+        void ResumeJobs(GroupMatcher<JobKey> matcher);
 
-        Task PauseAll();
+        void PauseAll();
 
-        Task ResumeAll();
+        void ResumeAll();
 
-        Task<IReadOnlyList<string>> GetJobGroupNames();
+        IReadOnlyCollection<string> GetJobGroupNames();
 
-        Task<ISet<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher);
+        IReadOnlyCollection<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher);
 
-        Task<IReadOnlyList<ITrigger>> GetTriggersOfJob(JobKey jobKey);
+        IReadOnlyCollection<ITrigger> GetTriggersOfJob(JobKey jobKey);
 
-        Task<IReadOnlyList<string>> GetTriggerGroupNames();
+        IReadOnlyCollection<string> GetTriggerGroupNames();
 
-        Task<ISet<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher);
+        IReadOnlyCollection<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher);
 
-        Task<IJobDetail> GetJobDetail(JobKey jobKey);
+        IJobDetail GetJobDetail(JobKey jobKey);
 
-        Task<ITrigger> GetTrigger(TriggerKey triggerKey);
+        ITrigger GetTrigger(TriggerKey triggerKey);
 
-        Task<TriggerState> GetTriggerState(TriggerKey triggerKey);
+        TriggerState GetTriggerState(TriggerKey triggerKey);
 
-        Task AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers);
+        void AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers);
 
-        Task<bool> DeleteCalendar(string calName);
+        bool DeleteCalendar(string calName);
 
-        Task<ICalendar> GetCalendar(string calName);
+        ICalendar GetCalendar(string calName);
 
-        Task<IReadOnlyList<string>> GetCalendarNames();
+        IReadOnlyCollection<string> GetCalendarNames();
 
-        Task<bool> Interrupt(JobKey jobKey);
+        bool Interrupt(JobKey jobKey);
 
-        Task<bool> Interrupt(string fireInstanceId);
+        bool Interrupt(string fireInstanceId);
 
-        Task<bool> CheckExists(JobKey jobKey);
+        bool CheckExists(JobKey jobKey);
 
-        Task<bool> CheckExists(TriggerKey triggerKey);
+        bool CheckExists(TriggerKey triggerKey);
 
-        Task<bool> DeleteJobs(IList<JobKey> jobKeys);
+        bool DeleteJobs(IReadOnlyCollection<JobKey> jobKeys);
 
-        Task ScheduleJobs(IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, bool replace);
-        
-        Task ScheduleJob(IJobDetail jobDetail, ISet<ITrigger> triggersForJob, bool replace);
+        void ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace);
 
-        Task<bool> UnscheduleJobs(IList<TriggerKey> triggerKeys);
+        void ScheduleJob(IJobDetail jobDetail, IReadOnlyCollection<ITrigger> triggersForJob, bool replace);
+
+        bool UnscheduleJobs(IReadOnlyCollection<TriggerKey> triggerKeys);
     }
 }

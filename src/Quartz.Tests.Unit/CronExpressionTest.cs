@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -31,14 +31,10 @@ using Quartz.Util;
 namespace Quartz.Tests.Unit
 {
     /// <author>Marko Lahma (.NET)</author>
-#if BINARY_SERIALIZATION
     [TestFixture(typeof(BinaryObjectSerializer))]
-#endif
     [TestFixture(typeof(JsonObjectSerializer))]
-    public class CronExpressionTest : SerializationTestSupport
+    public class CronExpressionTest : SerializationTestSupport<CronExpression>
     {
-        private static readonly string[] versions = new[] {"0.6.0"};
-
         private static readonly TimeZoneInfo testTimeZone = TimeZoneInfo.Local;
 
         public CronExpressionTest(Type serializerType) : base(serializerType)
@@ -50,7 +46,7 @@ namespace Quartz.Tests.Unit
         /// tests, and against which to validate deserialized object.
         /// </summary>
         /// <returns></returns>
-        protected override object GetTargetObject()
+        protected override CronExpression GetTargetObject()
         {
             CronExpression cronExpression = new CronExpression("0 15 10 * * ? 2005");
             cronExpression.TimeZone = testTimeZone;
@@ -58,30 +54,11 @@ namespace Quartz.Tests.Unit
             return cronExpression;
         }
 
-        /// <summary>
-        /// Get the Quartz versions for which we should verify
-        /// serialization backwards compatibility.
-        /// </summary>
-        /// <returns></returns>
-        protected override string[] GetVersions()
+        protected override void VerifyMatch(CronExpression original, CronExpression deserialized)
         {
-            return versions;
-        }
-
-        /// <summary>
-        /// Verify that the target object and the object we just deserialized 
-        /// match.
-        /// </summary>
-        /// <param name="target"></param>
-        /// <param name="deserialized"></param>
-        protected override void VerifyMatch(object target, object deserialized)
-        {
-            CronExpression targetCronExpression = (CronExpression) target;
-            CronExpression deserializedCronExpression = (CronExpression) deserialized;
-
-            Assert.IsNotNull(deserializedCronExpression);
-            Assert.AreEqual(targetCronExpression.CronExpressionString, deserializedCronExpression.CronExpressionString);
-            //Assert.AreEqual(targetCronExpression.getTimeZone(), deserializedCronExpression.getTimeZone());
+            Assert.IsNotNull(deserialized);
+            Assert.AreEqual(original.CronExpressionString, deserialized.CronExpressionString);
+            Assert.AreEqual(original.TimeZone, deserialized.TimeZone);
         }
 
         /// <summary>
@@ -164,7 +141,7 @@ namespace Quartz.Tests.Unit
         {
             CronExpression cronExpression = new CronExpression("0 0 12 ? * MON-FRI");
             int[] arrJuneDaysThatShouldFire =
-                new int[] {1, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 18, 19, 20, 22, 21, 25, 26, 27, 28, 29};
+                {1, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 18, 19, 20, 22, 21, 25, 26, 27, 28, 29};
             List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
 
             TestCorrectWeekFireDays(cronExpression, juneDays);
@@ -175,7 +152,7 @@ namespace Quartz.Tests.Unit
         {
             CronExpression cronExpression = new CronExpression("0 0 12 ? * FRI");
             int[] arrJuneDaysThatShouldFire =
-                new int[] {1, 8, 15, 22, 29};
+                {1, 8, 15, 22, 29};
             List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
 
             TestCorrectWeekFireDays(cronExpression, juneDays);
@@ -185,7 +162,7 @@ namespace Quartz.Tests.Unit
         public void TestCronExpressionLastDayOfMonth()
         {
             CronExpression cronExpression = new CronExpression("0 0 12 L * ?");
-            int[] arrJuneDaysThatShouldFire = new int[] {30};
+            int[] arrJuneDaysThatShouldFire = {30};
             List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
 
             TestCorrectWeekFireDays(cronExpression, juneDays);
@@ -258,8 +235,10 @@ namespace Quartz.Tests.Unit
                     // next fire day may be monday for several days..
                     fireDays.Add(nextFireTime.Value.Day);
                 }
+
                 cal = cal.AddDays(1);
             }
+
             // check rite dates fired
             for (int i = 0; i < fireDays.Count; ++i)
             {
@@ -297,7 +276,8 @@ namespace Quartz.Tests.Unit
             DateTime start = new DateTime(2008, 12, 19, 0, 0, 0);
             for (int i = 0; i < 200; ++i)
             {
-                bool shouldFire = (start.Hour >= 10 && start.Hour <= 13 && start.Minute == 30 && (start.DayOfWeek == DayOfWeek.Wednesday || start.DayOfWeek == DayOfWeek.Friday));
+                bool shouldFire = start.Hour >= 10 && start.Hour <= 13 && start.Minute == 30
+                                  && (start.DayOfWeek == DayOfWeek.Wednesday || start.DayOfWeek == DayOfWeek.Friday);
                 shouldFire = shouldFire && start.Day > 15 && start.Day < 28;
 
                 bool satisfied = ce.IsSatisfiedBy(start.ToUniversalTime());
@@ -400,6 +380,7 @@ namespace Quartz.Tests.Unit
                     fe.Message.StartsWith("Support for specifying 'L' and 'LW' with other days of the month is not implemented"),
                     "Incorrect FormatException thrown");
             }
+
             try
             {
                 new CronExpression("0 43 9 ? * SAT,SUN,L");
@@ -411,6 +392,7 @@ namespace Quartz.Tests.Unit
                     pe.Message.StartsWith("Support for specifying 'L' with other days of the week is not implemented"),
                     "Incorrect FormatException thrown");
             }
+
             try
             {
                 new CronExpression("0 43 9 ? * 6,7,L");
@@ -422,6 +404,7 @@ namespace Quartz.Tests.Unit
                     pe.Message.StartsWith("Support for specifying 'L' with other days of the week is not implemented"),
                     "Incorrect FormatException thrown");
             }
+
             try
             {
                 new CronExpression("0 43 9 ? * 5L");
@@ -508,7 +491,6 @@ namespace Quartz.Tests.Unit
             }
         }
 
-#if !NETCORE
         [Test]
         public void TestDaylightSaving_QRTZNETZ186()
         {
@@ -517,6 +499,7 @@ namespace Quartz.Tests.Unit
             {
                 return;
             }
+
             var daylightChange = TimeZone.CurrentTimeZone.GetDaylightChanges(2012);
             DateTimeOffset before = daylightChange.Start.ToUniversalTime().AddMinutes(-5); // keep outside the potentially undefined interval
             DateTimeOffset? after = expression.GetNextValidTimeAfter(before);
@@ -524,7 +507,6 @@ namespace Quartz.Tests.Unit
             DateTimeOffset expected = daylightChange.Start.Add(daylightChange.Delta).AddMinutes(15).ToUniversalTime();
             Assert.AreEqual(expected, after.Value);
         }
-#endif
 
         [Test]
         public void TestDaylightSavingsDoesNotMatchAnHourBefore()
@@ -676,6 +658,32 @@ namespace Quartz.Tests.Unit
             Assert.That(e.Message, Is.EqualTo("'/' must be followed by an integer."));
         }
 
+        [Test]
+        public void TestInvalidCharactersAfterAsterisk()
+        {
+            Assert.That(CronExpression.IsValidExpression("* * * ? * *A&/5:"), Is.False);
+            Assert.That(CronExpression.IsValidExpression("* * * ? *14 "), Is.False);
+            Assert.That(CronExpression.IsValidExpression(" * * ? *A&/5 *"), Is.False);
+            Assert.That(CronExpression.IsValidExpression("* * ? */5 *"), Is.False);
+            Assert.That(CronExpression.IsValidExpression("* * ? */52 *"), Is.False);
+
+            Assert.That(CronExpression.IsValidExpression("0 0/30 * * * ?"), Is.True);
+            Assert.That(CronExpression.IsValidExpression("0 0/1 * * * ?"), Is.True);
+            Assert.That(CronExpression.IsValidExpression("0 0/30 * * */2 ?"), Is.True);
+        }
+
+        [Test]
+        public void TestExtraCharactersAfterWeekDay()
+        {
+            Assert.That(CronExpression.IsValidExpression("0 0 15 ? * FRI*"), Is.False);
+        }
+
+        [Test]
+        public void TestHourRangeAndSlash()
+        {
+            CronExpression.ValidateExpression("0 0 18-21/1 ? * MON,TUE,WED,THU,FRI,SAT,SUN");
+        }
+
         private class SimpleCronExpression : CronExpression
         {
             public SimpleCronExpression(string cronExpression)
@@ -685,7 +693,7 @@ namespace Quartz.Tests.Unit
 
             public ISet<int> GetSetPublic(int constant)
             {
-                return base.GetSet(constant);
+                return GetSet(constant);
             }
         }
 

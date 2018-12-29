@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -23,9 +23,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.Serialization;
-using System.Security;
 
-using Quartz.Collection;
 using Quartz.Util;
 
 namespace Quartz.Impl.Calendar
@@ -42,20 +40,18 @@ namespace Quartz.Impl.Calendar
 	/// <author>Sharada Jambula</author>
 	/// <author>Juergen Donnerstag</author>
 	/// <author>Marko Lahma (.NET)</author>
-#if BINARY_SERIALIZATION
 	[Serializable]
-#endif // BINARY_SERIALIZATION
 	public class HolidayCalendar : BaseCalendar
 	{
 		/// <summary>
-        /// Returns a <see cref="ISortedSet{T}" /> of Dates representing the excluded
+        /// Returns a collection of dates representing the excluded
 		/// days. Only the month, day and year of the returned dates are
 		/// significant.
 		/// </summary>
-        public virtual ISet<DateTime> ExcludedDates
+        public virtual IReadOnlyCollection<DateTime> ExcludedDates
 		{
-            get { return new SortedSet<DateTime>(dates); }
-            internal set { dates = new SortedSet<DateTime>(value); }
+            get => new ReadOnlyCompatibleHashSet<DateTime>(dates);
+			internal set => dates = new SortedSet<DateTime>(value);
 		}
 
 		// A sorted set to store the holidays
@@ -77,7 +73,6 @@ namespace Quartz.Impl.Calendar
 			CalendarBase = baseCalendar;
 		}
 
-#if BINARY_SERIALIZATION // NetCore versions of Quartz can't use old serialized data. 
         // Make sure that future calendar version changes are done in a DCS-friendly way (with [OnSerializing] and [OnDeserialized] methods).
         /// <summary>
         /// Serialization constructor.
@@ -99,24 +94,8 @@ namespace Quartz.Impl.Calendar
             switch (version)
             {
                 case 0:
-                    object o = info.GetValue("dates", typeof(object));
-                    TreeSet oldTreeset = o as TreeSet;
-                    if (oldTreeset != null)
-                    {
-                        foreach (DateTime dateTime in oldTreeset)
-                        {
-                            dates.Add(dateTime);
-                        }
-                    }
-                    else
-                    {
-                        // must be generic treeset 
-                        dates = (TreeSet<DateTime>) o;
-                    }
-                    break;
                 case 1:
-                    dates = (TreeSet<DateTime>) info.GetValue("dates", typeof(TreeSet<DateTime>));
-                    break;
+                    throw new NotSupportedException("cannot deserialize old version, use latest Quartz 2.x version to re-serialize all HolidayCalendar instances in database");
                 case 2:
                     dates = new SortedSet<DateTime>((DateTime[]) info.GetValue("dates", typeof(DateTime[])));
                     break;
@@ -125,7 +104,7 @@ namespace Quartz.Impl.Calendar
             }
         }
 
-        [SecurityCritical]
+        [System.Security.SecurityCritical]
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
@@ -133,7 +112,6 @@ namespace Quartz.Impl.Calendar
             info.AddValue("version", 2);
             info.AddValue("dates", dates.ToArray());
         }
-#endif // BINARY_SERIALIZATION
 
 		/// <summary>
 		/// Determine whether the given time (in milliseconds) is 'included' by the
@@ -167,7 +145,7 @@ namespace Quartz.Impl.Calendar
 		{
 			// Call base calendar implementation first
             DateTimeOffset baseTime = base.GetNextIncludedTimeUtc(timeUtc);
-            if ((timeUtc != DateTimeOffset.MinValue) && (baseTime > timeUtc))
+            if (timeUtc != DateTimeOffset.MinValue && baseTime > timeUtc)
 			{
 				timeUtc = baseTime;
 			}
@@ -221,9 +199,9 @@ namespace Quartz.Impl.Calendar
         public override int GetHashCode()
         {
             int baseHash = 0;
-            if (GetBaseCalendar() != null)
+            if (CalendarBase != null)
             {
-                baseHash = GetBaseCalendar().GetHashCode();
+                baseHash = CalendarBase.GetHashCode();
             }
 
             return ExcludedDates.GetHashCode() + 5*baseHash;
@@ -236,7 +214,7 @@ namespace Quartz.Impl.Calendar
                 return false;
             }
 
-            bool baseEqual = GetBaseCalendar() == null || GetBaseCalendar().Equals(obj.GetBaseCalendar());
+            bool baseEqual = CalendarBase == null || CalendarBase.Equals(obj.CalendarBase);
 
             return baseEqual && ExcludedDates.SequenceEqual(obj.ExcludedDates);
         }

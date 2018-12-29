@@ -1,7 +1,7 @@
 ﻿#region License
 
 /*
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -50,6 +50,10 @@ namespace Quartz.Impl.AdoJobStore
             this.connection = connection;
             this.transaction = transaction;
         }
+
+        public DbConnection Connection => connection;
+
+        public DbTransaction Transaction => transaction;
 
         public void Attach(DbCommand cmd)
         {
@@ -118,7 +122,7 @@ namespace Quartz.Impl.AdoJobStore
 
         internal virtual DateTimeOffset? SignalSchedulingChangeOnTxCompletion
         {
-            get { return sigChangeForTxCompletion; }
+            get => sigChangeForTxCompletion;
             set
             {
                 DateTimeOffset? sigTime = sigChangeForTxCompletion;
@@ -136,7 +140,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public void Rollback()
+        public void Rollback(bool transientError)
         {
             if (transaction != null)
             {
@@ -147,7 +151,16 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 catch (Exception e)
                 {
-                    log.ErrorException("Couldn't rollback ADO.NET connection. " + e.Message, e);
+                    if (transientError)
+                    {
+                        // original error was transient, ones we have in Azure, don't complain too much about it
+                        // we will try again anyway
+                        log.Debug("Rollback failed due to transient error");
+                    }
+                    else
+                    {
+                        log.ErrorException("Couldn't rollback ADO.NET connection. " + e.Message, e);
+                    }
                 }
             }
         }

@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -22,7 +22,6 @@
 using System;
 using System.Linq;
 using System.Runtime.Serialization;
-using System.Security;
 
 using Quartz.Util;
 
@@ -37,9 +36,7 @@ namespace Quartz.Impl.Calendar
     /// <seealso cref="BaseCalendar" />
     /// <author>Juergen Donnerstag</author>
     /// <author>Marko Lahma (.NET)</author>
-#if BINARY_SERIALIZATION
     [Serializable]
-#endif // BINARY_SERIALIZATION
     public class MonthlyCalendar : BaseCalendar
     {
         private const int MaxDaysInMonth = 31;
@@ -67,8 +64,6 @@ namespace Quartz.Impl.Calendar
         {
             Init();
         }
-
-#if BINARY_SERIALIZATION // If this functionality is needed in the future with DCS serialization, it can ne added with [OnSerializing] and [OnDeserialized] methods
 
         /// <summary>
         /// Serialization constructor.
@@ -99,7 +94,7 @@ namespace Quartz.Impl.Calendar
             }
         }
 
-        [SecurityCritical]
+        [System.Security.SecurityCritical]
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
@@ -108,9 +103,8 @@ namespace Quartz.Impl.Calendar
             info.AddValue("excludeDays", excludeDays);
             info.AddValue("excludeAll", excludeAll);
         }
-#endif // BINARY_SERIALIZATION
 
-        /// <summary> 
+        /// <summary>
         /// Initialize internal variables
         /// </summary>
         private void Init()
@@ -126,7 +120,7 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         public virtual bool[] DaysExcluded
         {
-            get { return excludeDays; }
+            get => excludeDays;
 
             set
             {
@@ -145,7 +139,7 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         public virtual bool IsDayExcluded(int day)
         {
-            if ((day < 1) || (day > MaxDaysInMonth))
+            if (day < 1 || day > MaxDaysInMonth)
             {
                 throw new ArgumentException(
                     $"The day parameter must be in the range of 1 to {MaxDaysInMonth}");
@@ -225,7 +219,7 @@ namespace Quartz.Impl.Calendar
 
             // Call base calendar implementation first
             DateTimeOffset baseTime = base.GetNextIncludedTimeUtc(timeUtc);
-            if ((baseTime != DateTimeOffset.MinValue) && (baseTime > timeUtc))
+            if (baseTime != DateTimeOffset.MinValue && baseTime > timeUtc)
             {
                 timeUtc = baseTime;
             }
@@ -269,12 +263,12 @@ namespace Quartz.Impl.Calendar
         public override int GetHashCode()
         {
             int baseHash = 0;
-            if (GetBaseCalendar() != null)
+            if (CalendarBase != null)
             {
-                baseHash = GetBaseCalendar().GetHashCode();
+                baseHash = CalendarBase.GetHashCode();
             }
 
-            return DaysExcluded.GetHashCode() + 5*baseHash;
+            return DaysExcluded.GetHashCode() + 5 * baseHash;
         }
 
         public bool Equals(MonthlyCalendar obj)
@@ -283,14 +277,14 @@ namespace Quartz.Impl.Calendar
             //about the precise month it is dealing with, so
             //FebruaryCalendars will be only equal if their
             //31st days are equally included
-            //but that's not going to be a problem since 
+            //but that's not going to be a problem since
             //there's no need to redefine default value of false
             //for such days
             if (obj == null)
             {
                 return false;
             }
-            bool baseEqual = GetBaseCalendar() == null || GetBaseCalendar().Equals(obj.GetBaseCalendar());
+            bool baseEqual = CalendarBase == null || CalendarBase.Equals(obj.CalendarBase);
 
             return baseEqual && DaysExcluded.SequenceEqual(obj.DaysExcluded);
         }
@@ -301,10 +295,7 @@ namespace Quartz.Impl.Calendar
             {
                 return false;
             }
-            else
-            {
-                return Equals((MonthlyCalendar) obj);
-            }
+            return Equals((MonthlyCalendar) obj);
         }
     }
 }

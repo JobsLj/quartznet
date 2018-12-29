@@ -1,5 +1,3 @@
-using System;
-
 using Quartz.Util;
 
 namespace Quartz
@@ -11,7 +9,7 @@ namespace Quartz
     /// <para>Keys are composed of both a name and group, and the name must be unique
     /// within the group.  If only a name is specified then the default group
     /// name will be used.
-    /// </para> 
+    /// </para>
     /// <para>
     /// Quartz provides a builder-style API for constructing scheduling-related
     /// entities via a Domain-Specific Language (DSL).  The DSL can best be
@@ -39,9 +37,7 @@ namespace Quartz
     /// </remarks>
     /// <seealso cref="ITrigger" />
     /// <seealso cref="Key{T}.DefaultGroup" />
-#if BINARY_SERIALIZATION
-    [Serializable]
-#endif // BINARY_SERIALIZATION
+    [System.Serializable]
     public sealed class TriggerKey : Key<TriggerKey>
     {
         private TriggerKey()

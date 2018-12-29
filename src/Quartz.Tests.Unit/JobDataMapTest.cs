@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -31,14 +31,10 @@ namespace Quartz.Tests.Unit
     /// Unit test for JobDataMap serialization backwards compatibility.
     /// </summary>
     /// <author>Marko Lahma (.NET)</author>
-#if BINARY_SERIALIZATION
     [TestFixture(typeof(BinaryObjectSerializer))]
-#endif
     [TestFixture(typeof(JsonObjectSerializer))]
-    public class JobDataMapTest : SerializationTestSupport
+    public class JobDataMapTest : SerializationTestSupport<JobDataMap>
     {
-        private static readonly string[] Versions = {"0.6.0"};
-
         public JobDataMapTest(Type serializerType) : base(serializerType)
         {
         }
@@ -48,37 +44,21 @@ namespace Quartz.Tests.Unit
         /// tests, and against which to validate deserialized object.
         /// </summary>
         /// <returns></returns>
-        protected override object GetTargetObject()
+        protected override JobDataMap GetTargetObject()
         {
             JobDataMap m = new JobDataMap();
             m.Put("key", 5);
             return m;
         }
 
-        /// <summary>
-        /// Get the Quartz versions for which we should verify
-        /// serialization backwards compatibility.
-        /// </summary>
-        /// <returns></returns>
-        protected override string[] GetVersions()
+        protected override void VerifyMatch(JobDataMap original, JobDataMap deserialized)
         {
-            return Versions;
-        }
-
-        /// <summary>
-        /// Verify that the target object and the object we just deserialized 
-        /// match.
-        /// </summary>
-        /// <param name="target"></param>
-        /// <param name="deserialized"></param>
-        protected override void VerifyMatch(object target, object deserialized)
-        {
-            JobDataMap targetMap = (JobDataMap) target;
-            JobDataMap deserializedMap = (JobDataMap) deserialized;
-
-            Assert.IsNotNull(deserializedMap);
-            Assert.AreEqual(targetMap.WrappedMap, deserializedMap.WrappedMap);
-            Assert.AreEqual(targetMap.Dirty, deserializedMap.Dirty);
+            Assert.That(deserialized, Is.Not.Null);
+            Assert.That(deserialized.WrappedMap, Is.EquivalentTo(original.WrappedMap));
+            if (serializer is JsonObjectSerializer)
+            {
+                Assert.That(deserialized.Dirty, Is.False, "should not be dirty when returning from serialization");
+            }
         }
     }
 }

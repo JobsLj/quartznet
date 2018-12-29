@@ -1,13 +1,17 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+#if !NETCORE
+using System.Data.SQLite;
+#endif
 using System.Diagnostics;
+using System.IO;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-
-using Quartz.Logging;
-
+#if NETCORE
+using Microsoft.Data.Sqlite;
+#endif
 using NUnit.Framework;
 
 using Quartz.Impl;
@@ -17,6 +21,7 @@ using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Simpl;
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore
 {
@@ -27,7 +32,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         private static readonly Dictionary<string, string> dbConnectionStrings = new Dictionary<string, string>();
         private bool clearJobs = true;
         private bool scheduleJobs = true;
-        private bool clustered = true;
         private ILogProvider oldProvider;
 
         private const string KeyResetEvent = "ResetEvent";
@@ -35,11 +39,13 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         static AdoJobStoreSmokeTest()
         {
             dbConnectionStrings["Oracle"] = "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=1521)))(CONNECT_DATA=(SERVICE_NAME=xe)));User Id=system;Password=oracle;";
-            dbConnectionStrings["SQLServer"] = "Server=(local);Database=quartz;User Id=quartznet;Password=quartznet;";
-            dbConnectionStrings["MySQL"] = "Server = localhost; Database = quartz; Uid = root; Pwd = Password12!";
-            dbConnectionStrings["PostgreSQL"] = "Server=127.0.0.1;Port=5432;Userid=postgres;Password=Password12!;Pooling=true;MinPoolSize=1;MaxPoolSize=20;Timeout=15;SslMode=Disable;Database=quartz";
+            dbConnectionStrings["SQLServer"] = TestConstants.SqlServerConnectionString;
+            dbConnectionStrings["SQLServerMOT"] = TestConstants.SqlServerConnectionStringMOT;
+            dbConnectionStrings["MySQL"] = "Server = localhost; Database = quartznet; Uid = quartznet; Pwd = quartznet";
+            dbConnectionStrings["PostgreSQL"] = "Server=127.0.0.1;Port=5432;Userid=quartznet;Password=quartznet;Pooling=true;MinPoolSize=1;MaxPoolSize=20;Timeout=15;SslMode=Disable;Database=quartznet";
             dbConnectionStrings["SQLite"] = "Data Source=test.db;Version=3;";
-            dbConnectionStrings["Firebird"] = "User=SYSDBA;Password=masterkey;Database=/quartz.fdb;DataSource=localhost;Port=3050;Dialect=3;Charset=NONE;Role=;Connection lifetime=15;Pooling=true;MinPoolSize=0;MaxPoolSize=50;Packet Size=8192;ServerType=0;";
+            dbConnectionStrings["SQLite-Microsoft"] = "Data Source=test.db;";
+            dbConnectionStrings["Firebird"] = "User=SYSDBA;Password=masterkey;Database=/firebird/data/quartz.fdb;DataSource=localhost;Port=3050;Dialect=3;Charset=NONE;Role=;Connection lifetime=15;Pooling=true;MinPoolSize=0;MaxPoolSize=50;Packet Size=8192;ServerType=0;";
         }
 
         [OneTimeSetUp]
@@ -62,20 +68,70 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         [TestCaseSource(nameof(GetSerializerTypes))]
         public Task TestSqlServer(string serializerType)
         {
-            NameValueCollection properties = new NameValueCollection();
-            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
+            var properties = new NameValueCollection
+            {
+                ["quartz.jobStore.driverDelegateType"] = typeof(Quartz.Impl.AdoJobStore.SqlServerDelegate).AssemblyQualifiedNameWithoutVersion()
+            };
             return RunAdoJobStoreTest(TestConstants.DefaultSqlServerProvider, "SQLServer", serializerType, properties);
         }
 
         [Test]
+        [Category("sqlserver")]
         [TestCaseSource(nameof(GetSerializerTypes))]
-        public Task TestPostgreSQL(string serializerType)
+        public Task TestSqlServerMemoryOptimizedTables(string serializerType)
+        {
+            var properties = new NameValueCollection
+            {
+                ["quartz.jobStore.driverDelegateType"] = typeof(Quartz.Impl.AdoJobStore.SqlServerDelegate).AssemblyQualifiedNameWithoutVersion(),
+                ["quartz.jobStore.lockHandler.type"] = typeof(Quartz.Impl.AdoJobStore.UpdateLockRowSemaphoreMOT).AssemblyQualifiedNameWithoutVersion()
+            };
+            return RunAdoJobStoreTest(TestConstants.DefaultSqlServerProvider, "SQLServerMOT", serializerType, properties);
+        }
+
+        [Test]
+        [TestCaseSource(nameof(GetSerializerTypes))]
+        public Task TestPostgreSql(string serializerType)
         {
             NameValueCollection properties = new NameValueCollection();
+            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.PostgreSQLDelegate, Quartz";
             return RunAdoJobStoreTest("Npgsql", "PostgreSQL", serializerType, properties);
         }
 
-#if !NETSTANDARD_DBPROVIDERS
+        [Test]
+        [TestCaseSource(nameof(GetSerializerTypes))]
+        public Task TestMySql(string serializerType)
+        {
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.MySQLDelegate, Quartz";
+            return RunAdoJobStoreTest("MySql", "MySQL", serializerType, properties);
+        }
+
+#if NETCORE
+        [Test]
+        [TestCaseSource(nameof(GetSerializerTypes))]
+        public async Task TestSQLiteMicrosoft(string serializerType)
+        {
+            if (File.Exists("test.db"))
+            {
+                File.Delete("test.db");
+            }
+
+            using (var connection = new SqliteConnection(dbConnectionStrings["SQLite-Microsoft"]))
+            {
+                await connection.OpenAsync();
+                string sql = await File.ReadAllTextAsync("../../../../database/tables/tables_sqlite.sql");
+
+                var command = new SqliteCommand(sql, connection);
+                command.ExecuteNonQuery();
+
+                connection.Close();
+            }
+
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SQLiteDelegate, Quartz";
+            await RunAdoJobStoreTest("SQLite-Microsoft", "SQLite-Microsoft", serializerType, properties, clustered: false);
+        }
+#endif
 
         [Test]
         [TestCaseSource(nameof(GetSerializerTypes))]
@@ -95,50 +151,38 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             return RunAdoJobStoreTest("OracleODPManaged", "Oracle", serializerType, properties);
         }
 
-        [Test]
-        [TestCaseSource(nameof(GetSerializerTypes))]
-        public Task TestMySql(string serializerType)
-        {
-            NameValueCollection properties = new NameValueCollection();
-            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.MySQLDelegate, Quartz";
-            return RunAdoJobStoreTest("MySql", "MySQL", serializerType, properties);
-        }
+#if !NETSTANDARD_DBPROVIDERS
 
         [Test]
         [TestCaseSource(nameof(GetSerializerTypes))]
-        public Task TestSQLite(string serializerType)
+        public async Task TestSQLite(string serializerType)
         {
+            while (File.Exists("test.db"))
+            {
+                File.Delete("test.db");
+            }
+
+            SQLiteConnection.CreateFile("test.db");
+
+            using (var connection = new SQLiteConnection(dbConnectionStrings["SQLite"]))
+            {
+                await connection.OpenAsync();
+                string sql = File.ReadAllText("../../../../database/tables/tables_sqlite.sql");
+
+                var command = new SQLiteCommand(sql, connection);
+                command.ExecuteNonQuery();
+
+                connection.Close();
+            }
+
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SQLiteDelegate, Quartz";
-            return RunAdoJobStoreTest("SQLite", "SQLite", serializerType, properties);
+            await RunAdoJobStoreTest("SQLite", "SQLite", serializerType, properties, clustered: false);
         }
 
-        [Test]
-        [TestCaseSource(nameof(GetSerializerTypes))]
-        public async Task TestSQLiteClustered(string serializerType)
-        {
-            clustered = true;
-            try
-            {
-                await TestSQLite(serializerType);
-            }
-            finally
-            {
-                clustered = false;
-            }
-        }
 #endif // NETSTANDARD_DBPROVIDERS
 
-        public static string[] GetSerializerTypes()
-        {
-            return new[]
-            {
-                "json"
-#if !NETSTANDARD_DBPROVIDERS
-                , "binary"
-#endif
-            };
-        }
+        public static string[] GetSerializerTypes() => new[] {"json", "binary"};
 
         private Task RunAdoJobStoreTest(string dbProvider, string connectionStringId, string serializerType)
         {
@@ -149,7 +193,8 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             string dbProvider,
             string connectionStringId,
             string serializerType,
-            NameValueCollection extraProperties)
+            NameValueCollection extraProperties,
+            bool clustered = true)
         {
             NameValueCollection properties = new NameValueCollection();
 
@@ -175,14 +220,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                 }
             }
 
-            if (connectionStringId == "SQLite")
-            {
-                // if running SQLite we need this, SQL Server is sniffed automatically
-                properties["quartz.jobStore.lockHandler.type"] = "Quartz.Impl.AdoJobStore.UpdateLockRowSemaphore, Quartz";
-            }
-
-            string connectionString;
-            if (!dbConnectionStrings.TryGetValue(connectionStringId, out connectionString))
+            if (!dbConnectionStrings.TryGetValue(connectionStringId, out var connectionString))
             {
                 throw new Exception("Unknown connection string id: " + connectionStringId);
             }
@@ -212,8 +250,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.useProperties"] = false.ToString();
             properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
 
-            string connectionString;
-            dbConnectionStrings.TryGetValue("SQLServer", out connectionString);
+            dbConnectionStrings.TryGetValue("SQLServer", out var connectionString);
             properties["quartz.dataSource.default.connectionString"] = connectionString;
             properties["quartz.dataSource.default.provider"] = TestConstants.DefaultSqlServerProvider;
 
@@ -273,13 +310,12 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.useProperties"] = "false";
             properties["quartz.jobStore.dataSource"] = "default";
             properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
-            properties["quartz.jobStore.clustered"] = clustered.ToString();
+            properties["quartz.jobStore.clustered"] = true.ToString();
 
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
             await RunAdoJobStoreTest(TestConstants.DefaultSqlServerProvider, "SQLServer", serializerType, properties);
 
-            string connectionString;
-            if (!dbConnectionStrings.TryGetValue("SQLServer", out connectionString))
+            if (!dbConnectionStrings.TryGetValue("SQLServer", out var connectionString))
             {
                 throw new Exception("Unknown connection string id: " + "SQLServer");
             }
@@ -378,12 +414,12 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                 .StartAt(now)
                 .Build();
 
-            var toSchedule = new Dictionary<IJobDetail, ISet<ITrigger>>();
-            toSchedule.Add(badJob, new HashSet<ITrigger>()
+            var toSchedule = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>();
+            toSchedule.Add(badJob, new List<ITrigger>
             {
                 badTrigger
             });
-            toSchedule.Add(goodJob, new HashSet<ITrigger>()
+            toSchedule.Add(goodJob, new List<ITrigger>
             {
                 goodTrigger
             });
@@ -412,7 +448,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.clustered"] = "false";
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
 
-            properties["quartz.dataSource.default.connectionString"] = TestConstants.DefaultSqlServerConnectionString;
+            properties["quartz.dataSource.default.connectionString"] = TestConstants.SqlServerConnectionString;
             properties["quartz.dataSource.default.provider"] = TestConstants.DefaultSqlServerProvider;
 
             // First we must get a reference to a scheduler
@@ -441,7 +477,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.clustered"] = "false";
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
 
-            properties["quartz.dataSource.default.connectionString"] = TestConstants.DefaultSqlServerConnectionString;
+            properties["quartz.dataSource.default.connectionString"] = TestConstants.SqlServerConnectionString;
             properties["quartz.dataSource.default.provider"] = TestConstants.DefaultSqlServerProvider;
 
             // First we must get a reference to a scheduler
@@ -493,7 +529,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         {
             public Task Execute(IJobExecutionContext context)
             {
-                return Task.FromResult(0);
+                return TaskUtil.CompletedTask;
             }
         }
 
@@ -504,7 +540,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                 try
                 {
                     ((ManualResetEventSlim) context.Scheduler.Context.Get(KeyResetEvent)).Wait(TimeSpan.FromSeconds(20));
-                    return Task.FromResult(0);
+                    return TaskUtil.CompletedTask;
                 }
                 catch (SchedulerException ex)
                 {

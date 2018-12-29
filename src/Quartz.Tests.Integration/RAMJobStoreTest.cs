@@ -21,7 +21,7 @@ namespace Quartz.Tests.Integration
         {
             public Task Execute(IJobExecutionContext context)
             {
-                return Task.FromResult(0);
+                return TaskUtil.CompletedTask;
             }
         }
 
@@ -29,7 +29,7 @@ namespace Quartz.Tests.Integration
         {
             public Task Execute(IJobExecutionContext context)
             {
-                return Task.FromResult(0);
+                return TaskUtil.CompletedTask;
             }
         }
 
@@ -47,14 +47,14 @@ namespace Quartz.Tests.Integration
                     jobExecTimestamps.Add(DateTime.UtcNow);
 
                     barrier.SignalAndWait(testTimeout);
-                    return Task.FromResult(0);
+                    return TaskUtil.CompletedTask;
                 }
                 catch (Exception e)
                 {
                     Console.Write(e);
                     Assert.Fail("Await on barrier was interrupted: " + e);
                 }
-                return Task.FromResult(0);
+                return TaskUtil.CompletedTask;
             }
         }
 
@@ -64,7 +64,7 @@ namespace Quartz.Tests.Integration
         {
             public Task Execute(IJobExecutionContext context)
             {
-                return Task.FromResult(0);
+                return TaskUtil.CompletedTask;
             }
         }
 
@@ -153,8 +153,8 @@ namespace Quartz.Tests.Integration
             Assert.That(jobGroups.Count, Is.EqualTo(2), "Job group list size expected to be = 2 ");
             Assert.That(triggerGroups.Count, Is.EqualTo(2), "Trigger group list size expected to be = 2 ");
 
-            ISet<JobKey> jobKeys = await sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(JobKey.DefaultGroup));
-            ISet<TriggerKey> triggerKeys = await sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(TriggerKey.DefaultGroup));
+            var jobKeys = await sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(JobKey.DefaultGroup));
+            var triggerKeys = await sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(TriggerKey.DefaultGroup));
 
             Assert.That(jobKeys.Count, Is.EqualTo(1), "Number of jobs expected in default group was 1 ");
             Assert.That(triggerKeys.Count, Is.EqualTo(1), "Number of triggers expected in default group was 1 ");
@@ -176,7 +176,7 @@ namespace Quartz.Tests.Integration
             s = await sched.GetTriggerState(new TriggerKey("t2", "g1"));
             Assert.That(s.Equals(TriggerState.Normal), "State of trigger t2 expected to be NORMAL ");
 
-            ISet<string> pausedGroups = await sched.GetPausedTriggerGroups();
+            var pausedGroups = await sched.GetPausedTriggerGroups();
             Assert.That(pausedGroups, Is.Empty, "Size of paused trigger groups list expected to be 0 ");
 
             await sched.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("g1"));
@@ -323,7 +323,7 @@ namespace Quartz.Tests.Integration
 
             DateTime fTime = jobExecTimestamps[0];
 
-            Assert.That((fTime - sTime < TimeSpan.FromMilliseconds(7000)), "Immediate trigger did not fire within a reasonable amount of time."); // This is dangerously subjective!  but what else to do?
+            Assert.That(fTime - sTime < TimeSpan.FromMilliseconds(7000), "Immediate trigger did not fire within a reasonable amount of time."); // This is dangerously subjective!  but what else to do?
         }
 
         [Test]
@@ -341,7 +341,7 @@ namespace Quartz.Tests.Integration
                 .WithSimpleSchedule(x => x.WithIntervalInSeconds(1).RepeatForever())
                 .Build();
 
-            ISet<ITrigger> triggersForJob = new HashSet<ITrigger>();
+            var triggersForJob = new List<ITrigger>();
             triggersForJob.Add(trigger1);
             triggersForJob.Add(trigger2);
 

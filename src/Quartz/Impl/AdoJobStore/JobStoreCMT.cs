@@ -1,6 +1,7 @@
 #region License
+
 /*
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -15,16 +16,17 @@
  * under the License.
  *
  */
+
 #endregion
 
 using System;
 using System.Data.Common;
 using System.Data.SqlClient;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Logging;
 using Quartz.Spi;
-using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -52,9 +54,10 @@ namespace Quartz.Impl.AdoJobStore
         /// Called by the QuartzScheduler before the <see cref="IJobStore"/> is
         /// used, in order to give the it a chance to Initialize.
         /// </summary>
-        /// <param name="loadHelper"></param>
-        /// <param name="signaler"></param>
-        public override Task Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler)
+        public override Task Initialize(
+            ITypeLoadHelper loadHelper, 
+            ISchedulerSignaler signaler,
+            CancellationToken cancellationToken = default)
         {
             if (LockHandler == null)
             {
@@ -63,7 +66,7 @@ namespace Quartz.Impl.AdoJobStore
                 UseDBLocks = true;
             }
 
-            base.Initialize(loadHelper, signaler);
+            base.Initialize(loadHelper, signaler, cancellationToken);
 
             Log.Info("JobStoreCMT initialized.");
             return TaskUtil.CompletedTask;
@@ -74,10 +77,9 @@ namespace Quartz.Impl.AdoJobStore
         /// it should free up all of it's resources because the scheduler is
         /// shutting down.
         /// </summary>
-        public override async Task Shutdown()
+        public override async Task Shutdown(CancellationToken cancellationToken = default)
         {
-
-            await base.Shutdown().ConfigureAwait(false);
+            await base.Shutdown(cancellationToken).ConfigureAwait(false);
 
             try
             {
@@ -140,9 +142,11 @@ namespace Quartz.Impl.AdoJobStore
         /// txCallback is still executed in a transaction.
         /// </param>
         /// <param name="txCallback">Callback to execute.</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
         protected override async Task<T> ExecuteInLock<T>(
-                string lockName,
-                Func<ConnectionAndTransactionHolder, Task<T>> txCallback)
+            string lockName,
+            Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
+            CancellationToken cancellationToken = default)
         {
             bool transOwner = false;
             ConnectionAndTransactionHolder conn = null;
@@ -158,7 +162,7 @@ namespace Quartz.Impl.AdoJobStore
                         conn = GetNonManagedTXConnection();
                     }
 
-                    transOwner = await LockHandler.ObtainLock(requestorId, conn, lockName).ConfigureAwait(false);
+                    transOwner = await LockHandler.ObtainLock(requestorId, conn, lockName, cancellationToken).ConfigureAwait(false);
                 }
 
                 if (conn == null)
@@ -172,7 +176,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
-                    await ReleaseLock(requestorId, lockName, transOwner).ConfigureAwait(false);
+                    await ReleaseLock(requestorId, lockName, transOwner, cancellationToken).ConfigureAwait(false);
                 }
                 finally
                 {

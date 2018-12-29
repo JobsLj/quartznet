@@ -1,6 +1,6 @@
 #region License
 /*
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -20,12 +20,14 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
+
 using NUnit.Framework;
+
 using Quartz.Impl;
 using Quartz.Simpl;
 using Quartz.Spi;
-using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl
 {
@@ -68,22 +70,22 @@ namespace Quartz.Tests.Unit.Impl
 				this.result = result;
 			}
 
-			public Task Initialize(string name, IScheduler scheduler)
+			public Task Initialize(string name, IScheduler scheduler, CancellationToken cancellationToken)
 			{
 				result.Append(name).Append("|").Append(scheduler.SchedulerName);
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
 
-            Task ISchedulerPlugin.Start()
+            Task ISchedulerPlugin.Start(CancellationToken cancellationToken)
 		    {
 		        result.Append("|Start");
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
 		    }
 
-			public Task Shutdown()
+			public Task Shutdown(CancellationToken cancellationToken)
 			{
 				result.Append("|Shutdown");
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
 			}
 		}
 	}

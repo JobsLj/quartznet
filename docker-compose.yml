@@ -15,12 +15,21 @@ services:
     build: docker/mysql
     ports:
      - "3306:3306"
-  
+    environment:
+     MYSQL_ROOT_PASSWORD: quartznet
+     MYSQL_DATABASE: quartznet
+     MYSQL_USER: quartznet
+     MYSQL_PASSWORD: quartznet
+     
   postgres:
     container_name: postgres
     build: docker/postgres
     ports:
      - "5432:5432"
+    environment:
+     POSTGRES_USER: quartznet
+     POSTGRES_PASSWORD: quartznet
+     POSTGRES_DB: quartznet
 
   firebird:
     container_name: firebird
@@ -41,4 +50,10 @@ services:
     build: docker/sqlserver
     ports:
      - "1433:1433"
+
+  sqlserver-mot:
+    container_name: sqlserver-mot
+    build: docker/sqlserver-mot
+    ports:
+     - "1444:1433"
 

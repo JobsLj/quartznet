@@ -1,7 +1,7 @@
 #region License
 
 /* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Impl.Triggers;
@@ -55,21 +56,29 @@ namespace Quartz.Impl.AdoJobStore
 
         public bool CanHandleTriggerType(IOperableTrigger trigger)
         {
-            return ((trigger is CronTriggerImpl) && !((CronTriggerImpl) trigger).HasAdditionalProperties);
+            return trigger is CronTriggerImpl impl && !impl.HasAdditionalProperties;
         }
 
-        public async Task<int> DeleteExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
+        public async Task<int> DeleteExtendedTriggerProperties(
+            ConnectionAndTransactionHolder conn, 
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlDeleteCronTrigger, TablePrefix, SchedNameLiteral)))
             {
                 DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
                 DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
-                return await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
         }
 
-        public async Task<int> InsertExtendedTriggerProperties(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail)
+        public async Task<int> InsertExtendedTriggerProperties(
+            ConnectionAndTransactionHolder conn, 
+            IOperableTrigger trigger, 
+            string state, 
+            IJobDetail jobDetail,
+            CancellationToken cancellationToken = default)
         {
             ICronTrigger cronTrigger = (ICronTrigger) trigger;
 
@@ -80,20 +89,23 @@ namespace Quartz.Impl.AdoJobStore
                 DbAccessor.AddCommandParameter(cmd, "triggerCronExpression", cronTrigger.CronExpressionString);
                 DbAccessor.AddCommandParameter(cmd, "triggerTimeZone", cronTrigger.TimeZone.Id);
 
-                return await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
         }
 
-        public async Task<TriggerPropertyBundle> LoadExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
+        public async Task<TriggerPropertyBundle> LoadExtendedTriggerProperties(
+            ConnectionAndTransactionHolder conn,
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectCronTriggers, TablePrefix, SchedNameLiteral)))
             {
                 DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
                 DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
-                using (var rs = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
+                using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
                 {
-                    if (await rs.ReadAsync().ConfigureAwait(false))
+                    if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
                     {
                         string cronExpr = rs.GetString(AdoConstants.ColumnCronExpression);
                         string timeZoneId = rs.GetString(AdoConstants.ColumnTimeZoneId);
@@ -113,7 +125,12 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public async Task<int> UpdateExtendedTriggerProperties(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail)
+        public async Task<int> UpdateExtendedTriggerProperties(
+            ConnectionAndTransactionHolder conn, 
+            IOperableTrigger trigger, 
+            string state, 
+            IJobDetail jobDetail,
+            CancellationToken cancellationToken = default)
         {
             ICronTrigger cronTrigger = (ICronTrigger) trigger;
 
@@ -124,7 +141,7 @@ namespace Quartz.Impl.AdoJobStore
                 DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
                 DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
 
-                return await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
         }
     }

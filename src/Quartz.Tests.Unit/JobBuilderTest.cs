@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+
 using NUnit.Framework;
 
 namespace Quartz.Tests.Unit
@@ -12,7 +13,7 @@ namespace Quartz.Tests.Unit
         {
             public Task Execute(IJobExecutionContext context)
             {
-                return Task.FromResult(0);
+                return TaskUtil.CompletedTask;
             }
         }
 
@@ -20,7 +21,7 @@ namespace Quartz.Tests.Unit
         {
             public Task Execute(IJobExecutionContext context)
             {
-                return Task.FromResult(0);
+                return TaskUtil.CompletedTask;
             }
         }
 
@@ -30,7 +31,7 @@ namespace Quartz.Tests.Unit
         {
             public Task Execute(IJobExecutionContext context)
             {
-                return Task.FromResult(0);
+                return TaskUtil.CompletedTask;
             }
         }
 

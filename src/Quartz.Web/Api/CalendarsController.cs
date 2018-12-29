@@ -1,18 +1,18 @@
 ﻿using System.Collections.Generic;
 using System.Net;
 using System.Threading.Tasks;
-using System.Web.Http;
+using Microsoft.AspNetCore.Mvc;
 using Quartz.Impl;
 using Quartz.Web.Api.Dto;
 
 namespace Quartz.Web.Api
 {
-    [RoutePrefix("api/schedulers/{schedulerName}/calendars")]
-    public class CalendarsController : ApiController
+    [Route("api/schedulers/{schedulerName}/calendars")]
+    public class CalendarsController : Controller
     {
         [HttpGet]
         [Route("")]
-        public async Task<IReadOnlyList<string>> Calendars(string schedulerName)
+        public async Task<IReadOnlyCollection<string>> Calendars(string schedulerName)
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
             var calendarNames = await scheduler.GetCalendarNames().ConfigureAwait(false);
@@ -51,7 +51,8 @@ namespace Quartz.Web.Api
             var scheduler = await SchedulerRepository.Instance.Lookup(schedulerName).ConfigureAwait(false);
             if (scheduler == null)
             {
-                throw new HttpResponseException(HttpStatusCode.NotFound);
+                //throw new HttpResponseException(HttpStatusCode.NotFound);
+                throw new KeyNotFoundException($"Scheduler {schedulerName} not found!");
             }
             return scheduler;
         }

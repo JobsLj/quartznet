@@ -4,7 +4,7 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
 {
     public class ExceptionJob : IJob
     {
-        public static int LaunchCount = 0;
+        public static int LaunchCount;
         public static bool Refire = false;
         public static bool UnscheduleFiringTrigger = false;
         public static bool UnscheduleAllTriggers = false;
@@ -35,7 +35,7 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
                
                 throw toThrow;
             }
-            return Task.FromResult(0);
+            return TaskUtil.CompletedTask;
         }
     }
 }

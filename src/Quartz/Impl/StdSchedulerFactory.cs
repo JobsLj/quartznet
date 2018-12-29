@@ -1,7 +1,7 @@
 #region License
 
 /*
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -22,12 +22,12 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
-#if CONFIGURATION
 using System.Configuration;
-#endif // CONFIGURATION
+using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Security;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Core;
@@ -38,8 +38,6 @@ using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
-
-using System.Globalization;
 
 namespace Quartz.Impl
 {
@@ -62,7 +60,7 @@ namespace Quartz.Impl
     /// </para>
     /// <para>
     /// Alternatively, you can explicitly Initialize the factory by calling one of
-    /// the <see cref="Initialize()" /> methods before calling <see cref="GetScheduler()" />.
+    /// the <see cref="Initialize()" /> methods before calling <see cref="GetScheduler(CancellationToken)" />.
     /// </para>
     /// <para>
     /// Instances of the specified <see cref="IJobStore" />,
@@ -142,13 +140,11 @@ namespace Quartz.Impl
 
         private string SchedulerName
         {
+            // ReSharper disable once ArrangeAccessorOwnerBody
             get { return cfg.GetStringProperty(PropertySchedulerInstanceName, "QuartzScheduler"); }
         }
 
-        protected ILog Log
-        {
-            get { return log; }
-        }
+        private ILog Log => log;
 
         /// <summary>
         /// Returns a handle to the default Scheduler, creating it if it does not
@@ -156,10 +152,11 @@ namespace Quartz.Impl
         /// </summary>
         /// <seealso cref="Initialize()">
         /// </seealso>
-        public static Task<IScheduler> GetDefaultScheduler()
+        public static Task<IScheduler> GetDefaultScheduler(
+            CancellationToken cancellationToken = default)
         {
             StdSchedulerFactory fact = new StdSchedulerFactory();
-            return fact.GetScheduler();
+            return fact.GetScheduler(cancellationToken);
         }
 
         /// <summary> <para>
@@ -167,9 +164,10 @@ namespace Quartz.Impl
         /// StdSchedulerFactory instance.).
         /// </para>
         /// </summary>
-        public virtual Task<IReadOnlyList<IScheduler>> AllSchedulers
+        public virtual Task<IReadOnlyList<IScheduler>> GetAllSchedulers(
+            CancellationToken cancellationToken = default)
         {
-            get { return SchedulerRepository.Instance.LookupAll(); }
+            return SchedulerRepository.Instance.LookupAll(cancellationToken);
         }
 
         /// <summary>
@@ -199,7 +197,7 @@ namespace Quartz.Impl
         /// you must define the system property 'quartz.properties' to point to
         /// the file you want.
         /// </remarks>
-        public void Initialize()
+        public virtual void Initialize()
         {
             // short-circuit if already initialized
             if (cfg != null)
@@ -211,16 +209,9 @@ namespace Quartz.Impl
                 throw initException;
             }
 
-            NameValueCollection props =
-#if CONFIGURATION
-                (NameValueCollection) ConfigurationManager.GetSection(ConfigurationSectionName);
-#else // CONFIGURATION
-            null;
-#endif // CONFIGURATION
-
+            var props = Util.Configuration.GetSection(ConfigurationSectionName);
             string requestedFile = QuartzEnvironment.GetEnvironmentVariable(PropertiesFile);
-
-            string propFileName = requestedFile != null && requestedFile.Trim().Length > 0 ? requestedFile : "~/quartz.config";
+            string propFileName = !string.IsNullOrWhiteSpace(requestedFile) ? requestedFile : "~/quartz.config";
 
             // check for specials
             try
@@ -544,7 +535,7 @@ Please add configuration to your application config file to correctly initialize
             // Set up any DataSources
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-            IList<string> dsNames = cfg.GetPropertyGroups(PropertyDataSourcePrefix);
+            var dsNames = cfg.GetPropertyGroups(PropertyDataSourcePrefix);
             foreach (string dataSourceName in dsNames)
             {
                 string datasourceKey = "{0}.{1}".FormatInvariant(PropertyDataSourcePrefix, dataSourceName);
@@ -590,7 +581,6 @@ Please add configuration to your application config file to correctly initialize
                     string dsConnectionString = pp.GetStringProperty(PropertyDataSourceConnectionString, null);
                     string dsConnectionStringName = pp.GetStringProperty(PropertyDataSourceConnectionStringName, null);
 
-#if CONFIGURATION
                     if (dsConnectionString == null && !string.IsNullOrEmpty(dsConnectionStringName))
                     {
                         ConnectionStringSettings connectionStringSettings = ConfigurationManager.ConnectionStrings[dsConnectionStringName];
@@ -601,7 +591,6 @@ Please add configuration to your application config file to correctly initialize
                         }
                         dsConnectionString = connectionStringSettings.ConnectionString;
                     }
-#endif // CONFIGURATION
 
                     if (dsProvider == null)
                     {
@@ -658,12 +647,7 @@ Please add configuration to your application config file to correctly initialize
                 }
                 if (objectSerializerType.Equals("binary", StringComparison.OrdinalIgnoreCase))
                 {
-#if BINARY_SERIALIZATION
                     objectSerializerType = typeof(BinaryObjectSerializer).AssemblyQualifiedNameWithoutVersion();
-#else
-                    initException = new SchedulerException("Binary serialization is not supported");
-                    throw initException;
-#endif
                 }
 
                 tProps = cfg.GetPropertyGroup(PropertyObjectSerializer, true);
@@ -687,7 +671,7 @@ Please add configuration to your application config file to correctly initialize
                 // when we know for sure that job store does not need serialization we can be a bit more relaxed
                 // otherwise it's an error to not define the serialization strategy
                 initException = new SchedulerException($"You must define object serializer using configuration key '{serializerTypeKey}' when using other than RAMJobStore. " +
-                    "Out of the box supported values are 'json' and 'binary'. JSON doesn't suffer from versioning as much as binary serialization but you cannot use it if you already have binary serialized data.");
+                                                       "Out of the box supported values are 'json' and 'binary'. JSON doesn't suffer from versioning as much as binary serialization but you cannot use it if you already have binary serialized data.");
                 throw initException;
             }
 
@@ -761,7 +745,7 @@ Please add configuration to your application config file to correctly initialize
             // Set up any SchedulerPlugins
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-            IList<string> pluginNames = cfg.GetPropertyGroups(PropertyPluginPrefix);
+            var pluginNames = cfg.GetPropertyGroups(PropertyPluginPrefix);
             ISchedulerPlugin[] plugins = new ISchedulerPlugin[pluginNames.Count];
             for (int i = 0; i < pluginNames.Count; i++)
             {
@@ -799,7 +783,7 @@ Please add configuration to your application config file to correctly initialize
 
             // Set up any JobListeners
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            IList<string> jobListenerNames = cfg.GetPropertyGroups(PropertyJobListenerPrefix);
+            var jobListenerNames = cfg.GetPropertyGroups(PropertyJobListenerPrefix);
             IJobListener[] jobListeners = new IJobListener[jobListenerNames.Count];
             for (int i = 0; i < jobListenerNames.Count; i++)
             {
@@ -842,7 +826,7 @@ Please add configuration to your application config file to correctly initialize
             // Set up any TriggerListeners
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-            IList<string> triggerListenerNames = cfg.GetPropertyGroups(PropertyTriggerListenerPrefix);
+            var triggerListenerNames = cfg.GetPropertyGroups(PropertyTriggerListenerPrefix);
             ITriggerListener[] triggerListeners = new ITriggerListener[triggerListenerNames.Count];
             for (int i = 0; i < triggerListenerNames.Count; i++)
             {
@@ -886,6 +870,14 @@ Please add configuration to your application config file to correctly initialize
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
             string exporterType = cfg.GetStringProperty(PropertySchedulerExporterType, null);
+
+#if !REMOTING
+            if (exporterType != null && exporterType.StartsWith("Quartz.Simpl.RemotingSchedulerExporter"))
+            {
+                log.Warn("RemotingSchedulerExporter configuration was ignored as Remoting is not supported");
+                exporterType = null;
+            }
+#endif
 
             if (exporterType != null)
             {
@@ -1095,7 +1087,8 @@ Please add configuration to your application config file to correctly initialize
         /// called, then the default (no-arg) <see cref="Initialize()" /> method
         /// will be called by this method.
         /// </remarks>
-        public virtual async Task<IScheduler> GetScheduler()
+        public virtual async Task<IScheduler> GetScheduler(
+            CancellationToken cancellationToken = default)
         {
             if (cfg == null)
             {
@@ -1104,7 +1097,7 @@ Please add configuration to your application config file to correctly initialize
 
             SchedulerRepository schedRep = SchedulerRepository.Instance;
 
-            IScheduler sched = await schedRep.Lookup(SchedulerName).ConfigureAwait(false);
+            IScheduler sched = await schedRep.Lookup(SchedulerName, cancellationToken).ConfigureAwait(false);
 
             if (sched != null)
             {
@@ -1128,9 +1121,11 @@ Please add configuration to your application config file to correctly initialize
         /// it has already been instantiated).
         /// </para>
         /// </summary>
-        public virtual Task<IScheduler> GetScheduler(string schedName)
+        public virtual Task<IScheduler> GetScheduler(
+            string schedName,
+            CancellationToken cancellationToken = default)
         {
-            return SchedulerRepository.Instance.Lookup(schedName);
+            return SchedulerRepository.Instance.Lookup(schedName, cancellationToken);
         }
     }
 }

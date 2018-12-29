@@ -1,29 +1,26 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
 
 using System;
 using System.Runtime.Serialization;
-using System.Security;
-
-using Quartz.Util;
 
 namespace Quartz.Impl.Calendar
 {
@@ -39,21 +36,13 @@ namespace Quartz.Impl.Calendar
     /// holidays as well you may define a WeeklyCalendar instance to be the base
     /// calendar for HolidayCalendar instance.
     /// </remarks>
-    /// <seealso cref="ICalendar" /> 
+    /// <seealso cref="ICalendar" />
     /// <author>Juergen Donnerstag</author>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-#if BINARY_SERIALIZATION
     [Serializable]
-#endif // BINARY_SERIALIZATION
-    public class BaseCalendar : ICalendar
-#if BINARY_SERIALIZATION
-        , ISerializable, IEquatable<BaseCalendar>
-#endif // BINARY_SERIALIZATION
+    public class BaseCalendar : ICalendar, ISerializable, IEquatable<BaseCalendar>
     {
-        // A optional base calendar.
-        private ICalendar baseCalendar;
-        private string description;
         private TimeZoneInfo timeZone;
 
         /// <summary>
@@ -88,11 +77,10 @@ namespace Quartz.Impl.Calendar
         /// <param name="timeZone">The time zone.</param>
         public BaseCalendar(ICalendar baseCalendar, TimeZoneInfo timeZone)
         {
-            this.baseCalendar = baseCalendar;
+            CalendarBase = baseCalendar;
             this.timeZone = timeZone;
         }
 
-#if BINARY_SERIALIZATION
         /// <summary>
         /// Serialization constructor.
         /// </summary>
@@ -136,27 +124,25 @@ namespace Quartz.Impl.Calendar
                     var timeZoneId = (string) info.GetValue(prefix + "timeZoneId", typeof(string));
                     if (!string.IsNullOrEmpty(timeZoneId))
                     {
-                        timeZone = TimeZoneUtil.FindTimeZoneById(timeZoneId);
+                        timeZone = Util.TimeZoneUtil.FindTimeZoneById(timeZoneId);
                     }
                     break;
                 default:
                     throw new NotSupportedException("Unknown serialization version");
             }
 
-            baseCalendar = (ICalendar) info.GetValue(prefix + "baseCalendar", typeof(ICalendar));
-            description = (string) info.GetValue(prefix + "description", typeof(string));
+            CalendarBase = (ICalendar) info.GetValue(prefix + "baseCalendar", typeof(ICalendar));
+            Description = (string) info.GetValue(prefix + "description", typeof(string));
         }
 
-        [SecurityCritical]
+        [System.Security.SecurityCritical]
         public virtual void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             info.AddValue("baseCalendarVersion", 1);
-            info.AddValue("baseCalendar", baseCalendar);
-            info.AddValue("description", description);
+            info.AddValue("baseCalendar", CalendarBase);
+            info.AddValue("description", Description);
             info.AddValue("timeZoneId", timeZone?.Id);
         }
-
-#endif // BINARY_SERIALIZATION
 
         /// <summary>
         /// Gets or sets the time zone.
@@ -172,36 +158,20 @@ namespace Quartz.Impl.Calendar
                 }
                 return timeZone;
             }
-            set { timeZone = value; }
+            set => timeZone = value;
         }
 
-        /// <summary> 
+        /// <summary>
         /// Gets or sets the description given to the <see cref="ICalendar" /> instance by
         /// its creator (if any).
         /// </summary>
-        public virtual string Description
-        {
-            get { return description; }
-            set { description = value; }
-        }
+        public string Description { get; set; }
 
         /// <summary>
         /// Set a new base calendar or remove the existing one
         /// </summary>
         /// <value></value>
-        public ICalendar CalendarBase
-        {
-            set { baseCalendar = value; }
-            get { return baseCalendar; }
-        }
-
-        /// <summary>
-        /// Get the base calendar. Will be null, if not set.
-        /// </summary>
-        public ICalendar GetBaseCalendar()
-        {
-            return baseCalendar;
-        }
+        public ICalendar CalendarBase { set; get; }
 
         /// <summary>
         /// Check if date/time represented by timeStamp is included. If included
@@ -216,9 +186,9 @@ namespace Quartz.Impl.Calendar
                 throw new ArgumentException("timeStampUtc must be greater 0");
             }
 
-            if (baseCalendar != null)
+            if (CalendarBase != null)
             {
-                if (!baseCalendar.IsTimeIncluded(timeStampUtc))
+                if (!CalendarBase.IsTimeIncluded(timeStampUtc))
                 {
                     return false;
                 }
@@ -240,9 +210,9 @@ namespace Quartz.Impl.Calendar
                 throw new ArgumentException("timeStamp must be greater DateTimeOffset.MinValue");
             }
 
-            if (baseCalendar != null)
+            if (CalendarBase != null)
             {
-                return baseCalendar.GetNextIncludedTimeUtc(timeUtc);
+                return CalendarBase.GetNextIncludedTimeUtc(timeUtc);
             }
 
             return timeUtc;
@@ -260,9 +230,9 @@ namespace Quartz.Impl.Calendar
 
         protected BaseCalendar CloneFields(BaseCalendar clone)
         {
-            clone.Description = description;
+            clone.Description = Description;
             clone.TimeZone = timeZone;
-            clone.CalendarBase = baseCalendar?.Clone();
+            clone.CalendarBase = CalendarBase?.Clone();
             return clone;
         }
 
@@ -285,9 +255,9 @@ namespace Quartz.Impl.Calendar
         {
             unchecked
             {
-                var hashCode = baseCalendar?.GetHashCode() ?? 0;
-                hashCode = (hashCode*397) ^ (description?.GetHashCode() ?? 0);
-                hashCode = (hashCode*397) ^ (timeZone?.GetHashCode() ?? 0);
+                var hashCode = CalendarBase?.GetHashCode() ?? 0;
+                hashCode = (hashCode * 397) ^ (Description?.GetHashCode() ?? 0);
+                hashCode = (hashCode * 397) ^ (timeZone?.GetHashCode() ?? 0);
                 return hashCode;
             }
         }

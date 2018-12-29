@@ -1,7 +1,7 @@
 #region License
 
 /* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Spi;
@@ -50,21 +51,37 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Inserts trigger's special properties.
         /// </summary>
-        Task<int> InsertExtendedTriggerProperties(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail);
+        Task<int> InsertExtendedTriggerProperties(
+            ConnectionAndTransactionHolder conn, 
+            IOperableTrigger trigger, 
+            string state,
+            IJobDetail jobDetail,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Updates trigger's special properties.
         /// </summary>
-        Task<int> UpdateExtendedTriggerProperties(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail);
+        Task<int> UpdateExtendedTriggerProperties(
+            ConnectionAndTransactionHolder conn, 
+            IOperableTrigger trigger,
+            string state, 
+            IJobDetail jobDetail,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Deletes trigger's special properties.
         /// </summary>
-        Task<int> DeleteExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey);
+        Task<int> DeleteExtendedTriggerProperties(
+            ConnectionAndTransactionHolder conn,
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default);
         
         /// <summary>
         /// Loads trigger's special properties.
         /// </summary>
-        Task<TriggerPropertyBundle> LoadExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey);
+        Task<TriggerPropertyBundle> LoadExtendedTriggerProperties(
+            ConnectionAndTransactionHolder conn,
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default);
     }
 }

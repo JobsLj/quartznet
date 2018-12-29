@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -37,17 +37,17 @@ namespace Quartz
     /// is added to a scheduler. They are also re-persisted after every execution of
     /// instances that have <see cref="PersistJobDataAfterExecutionAttribute" /> present.
     /// <para>
-    /// <see cref="JobDataMap" /> instances can also be stored with a 
+    /// <see cref="JobDataMap" /> instances can also be stored with a
     /// <see cref="ITrigger" />.  This can be useful in the case where you have a Job
-    /// that is stored in the scheduler for regular/repeated use by multiple 
+    /// that is stored in the scheduler for regular/repeated use by multiple
     /// Triggers, yet with each independent triggering, you want to supply the
-    /// Job with different data inputs.  
+    /// Job with different data inputs.
     /// </para>
     /// <para>
-    /// The <see cref="IJobExecutionContext" /> passed to a Job at execution time 
+    /// The <see cref="IJobExecutionContext" /> passed to a Job at execution time
     /// also contains a convenience <see cref="JobDataMap" /> that is the result
     /// of merging the contents of the trigger's JobDataMap (if any) over the
-    /// Job's JobDataMap (if any).  
+    /// Job's JobDataMap (if any).
     /// </para>
     /// <para>
     /// Update since 2.4.2 - We keep an dirty flag for this map so that whenever you modify(add/delete) any of the entries,
@@ -61,9 +61,7 @@ namespace Quartz
     /// <seealso cref="IJobExecutionContext" />
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-#if BINARY_SERIALIZATION
     [Serializable]
-#endif // BINARY_SERIALIZATION
     public class JobDataMap : StringKeyDirtyFlagMap
     {
         /// <summary>
@@ -73,7 +71,7 @@ namespace Quartz
         {
         }
 
-        /// <summary> 
+        /// <summary>
         /// Create a <see cref="JobDataMap" /> with the given data.
         /// </summary>
         public JobDataMap(IDictionary<string, object> map) : this()
@@ -85,7 +83,7 @@ namespace Quartz
             ClearDirtyFlag();
         }
 
-        /// <summary> 
+        /// <summary>
         /// Create a <see cref="JobDataMap" /> with the given data.
         /// </summary>
         public JobDataMap(IDictionary map) : this()
@@ -100,7 +98,6 @@ namespace Quartz
             ClearDirtyFlag();
         }
 
-#if BINARY_SERIALIZATION
         /// <summary>
         /// Serialization constructor.
         /// </summary>
@@ -109,7 +106,6 @@ namespace Quartz
         protected JobDataMap(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
-#endif // BINARY_SERIALIZATION
 
         /// <summary>
         /// Adds the given <see cref="bool" /> value as a string version to the
@@ -118,9 +114,8 @@ namespace Quartz
         public virtual void PutAsString(string key, bool value)
         {
             string strValue = value.ToString();
-            base.Put(key, strValue);
+            Put(key, strValue);
         }
-
 
         /// <summary>
         /// Adds the given <see cref="char" /> value as a string version to the
@@ -129,7 +124,7 @@ namespace Quartz
         public virtual void PutAsString(string key, char value)
         {
             string strValue = value.ToString();
-            base.Put(key, strValue);
+            Put(key, strValue);
         }
 
         /// <summary>
@@ -139,9 +134,8 @@ namespace Quartz
         public virtual void PutAsString(string key, double value)
         {
             string strValue = value.ToString(CultureInfo.InvariantCulture);
-            base.Put(key, strValue);
+            Put(key, strValue);
         }
-
 
         /// <summary>
         /// Adds the given <see cref="float" /> value as a string version to the
@@ -150,9 +144,8 @@ namespace Quartz
         public virtual void PutAsString(string key, float value)
         {
             string strValue = value.ToString(CultureInfo.InvariantCulture);
-            base.Put(key, strValue);
+            Put(key, strValue);
         }
-
 
         /// <summary>
         /// Adds the given <see cref="int" /> value as a string version to the
@@ -161,9 +154,8 @@ namespace Quartz
         public virtual void PutAsString(string key, int value)
         {
             string strValue = value.ToString(CultureInfo.InvariantCulture);
-            base.Put(key, strValue);
+            Put(key, strValue);
         }
-
 
         /// <summary>
         /// Adds the given <see cref="long" /> value as a string version to the
@@ -172,7 +164,7 @@ namespace Quartz
         public virtual void PutAsString(string key, long value)
         {
             string strValue = value.ToString(CultureInfo.InvariantCulture);
-            base.Put(key, strValue);
+            Put(key, strValue);
         }
 
         /// <summary>
@@ -182,7 +174,7 @@ namespace Quartz
         public virtual void PutAsString(string key, DateTime value)
         {
             string strValue = value.ToString(CultureInfo.InvariantCulture);
-            base.Put(key, strValue);
+            Put(key, strValue);
         }
 
         /// <summary>
@@ -192,7 +184,7 @@ namespace Quartz
         public virtual void PutAsString(string key, DateTimeOffset value)
         {
             string strValue = value.ToString(CultureInfo.InvariantCulture);
-            base.Put(key, strValue);
+            Put(key, strValue);
         }
 
         /// <summary>
@@ -202,7 +194,7 @@ namespace Quartz
         public virtual void PutAsString(string key, TimeSpan value)
         {
             string strValue = value.ToString();
-            base.Put(key, strValue);
+            Put(key, strValue);
         }
 
         /// <summary>
@@ -240,7 +232,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Retrieve the identified <see cref="bool" /> value from the 
+        /// Retrieve the identified <see cref="bool" /> value from the
         /// <see cref="JobDataMap" />.
         /// </summary>
         public virtual bool GetBooleanValue(string key)

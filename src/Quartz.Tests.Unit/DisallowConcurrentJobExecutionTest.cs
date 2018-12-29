@@ -8,7 +8,6 @@ using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Listener;
-using Quartz.Util;
 
 namespace Quartz.Tests.Unit
 {
@@ -47,7 +46,10 @@ namespace Quartz.Tests.Unit
 
             public override string Name => "TestJobListener";
 
-            public override Task JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
+            public override Task JobWasExecuted(
+                IJobExecutionContext context, 
+                JobExecutionException jobException,
+                CancellationToken cancellationToken = default)
             {
                 if (Interlocked.Increment(ref jobExCount) == jobExecutionCountToSyncAfter)
                 {
@@ -61,7 +63,7 @@ namespace Quartz.Tests.Unit
                         throw new AssertionException("Await on barrier was interrupted: " + e);
                     }
                 }
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
         }
 

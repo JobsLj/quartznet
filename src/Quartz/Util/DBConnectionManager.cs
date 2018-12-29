@@ -1,6 +1,6 @@
 #region License
 /*
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -36,29 +36,21 @@ namespace Quartz.Util
 	/// <author>Mohammad Rezaei</author>
     /// <author>Marko Lahma (.NET)</author>
     public class DBConnectionManager : IDbConnectionManager
-	{
+    {
         private static readonly DBConnectionManager instance = new DBConnectionManager();
 	    private static readonly ILog log = LogProvider.GetLogger(typeof (DBConnectionManager));
 
+        private readonly object syncRoot = new object();
         private readonly Dictionary<string, IDbProvider> providers = new Dictionary<string, IDbProvider>();
 
-		/// <summary>
+        /// <summary>
 		/// Get the class instance.
 		/// </summary>
 		/// <returns> an instance of this class
 		/// </returns>
-		public static IDbConnectionManager Instance
-		{
-			get
-			{
-				// since the instance variable is initialized at class loading time,
-				// it's not necessary to synchronize this method */
-				return instance;
-			}
-		}
+		public static IDbConnectionManager Instance => instance;
 
-
-		/// <summary>
+        /// <summary>
 		/// Private constructor
 		/// </summary>
 		private DBConnectionManager()
@@ -73,8 +65,12 @@ namespace Quartz.Util
         public virtual void AddConnectionProvider(string dataSourceName, IDbProvider provider)
 		{
             log.Info($"Registering datasource '{dataSourceName}' with db provider: '{provider}'");
+
+            lock (syncRoot)
+            {
 			providers[dataSourceName] = provider;
 		}
+        }
 
 		/// <summary>
 		/// Get a database connection from the DataSource with the given name.
@@ -86,7 +82,7 @@ namespace Quartz.Util
 			return provider.CreateConnection();
 		}
 
-		/// <summary>
+        /// <summary>
 		/// Shuts down database connections from the DataSource with the given name,
 		/// if applicable for the underlying provider.
 		/// </summary>
@@ -110,15 +106,20 @@ namespace Quartz.Util
 	    {
             if (string.IsNullOrEmpty(dsName))
             {
-                throw new ArgumentException("DataSource name cannot be null or empty", "dsName");
+                throw new ArgumentException("DataSource name cannot be null or empty", nameof(dsName));
             }
 
             IDbProvider provider;
-            providers.TryGetValue(dsName, out provider);
+            lock (syncRoot)
+            {
+                providers.TryGetValue(dsName, out provider);
+            }
+
             if (provider == null)
             {
                 throw new Exception($"There is no DataSource named '{dsName}'");
             }
+
             return provider;
         }
 	}

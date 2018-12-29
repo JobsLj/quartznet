@@ -1,6 +1,6 @@
 #region License
 /*
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -18,6 +18,7 @@
 #endregion
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Quartz.Impl.AdoJobStore
@@ -36,12 +37,19 @@ namespace Quartz.Impl.AdoJobStore
 		/// </summary>
 		/// <returns> true if the lock was obtained.
 		/// </returns>
-		Task<bool> ObtainLock(Guid requestorId, ConnectionAndTransactionHolder conn, string lockName);
+		Task<bool> ObtainLock(
+			Guid requestorId, 
+			ConnectionAndTransactionHolder conn,
+			string lockName,
+			CancellationToken cancellationToken = default);
 
 		/// <summary> Release the lock on the identified resource if it is held by the calling
 		/// thread.
 		/// </summary>
-		Task ReleaseLock(Guid requestorId, string lockName);
+		Task ReleaseLock(
+			Guid requestorId, 
+			string lockName, 
+			CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Whether this Semaphore implementation requires a database connection for

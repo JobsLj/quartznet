@@ -13,9 +13,7 @@ using Quartz.Util;
 namespace Quartz.Tests.Integration
 {
     [Category("sqlserver")]
-#if BINARY_SERIALIZATION
     [TestFixture(typeof(BinaryObjectSerializer))]
-#endif
     [TestFixture(typeof(JsonObjectSerializer))]
     public class AdoSchedulerTest : AbstractSchedulerTest
     {
@@ -29,7 +27,7 @@ namespace Quartz.Tests.Integration
 
         protected override Task<IScheduler> CreateScheduler(string name, int threadPoolSize)
         {
-            DBConnectionManager.Instance.AddConnectionProvider("default", new DbProvider(TestConstants.DefaultSqlServerProvider, TestConstants.DefaultSqlServerConnectionString));
+            DBConnectionManager.Instance.AddConnectionProvider("default", new DbProvider(TestConstants.DefaultSqlServerProvider, TestConstants.SqlServerConnectionString));
 
             var jobStore = new JobStoreTX
             {

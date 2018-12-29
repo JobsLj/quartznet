@@ -1,35 +1,36 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
 
 using System;
 using System.Collections.Generic;
-#if REMOTING
-using System.Runtime.Remoting;
-#endif // REMOTING
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Core;
 using Quartz.Impl.Matchers;
 using Quartz.Simpl;
 using Quartz.Spi;
+#if REMOTING
+using System.Runtime.Remoting;
+#endif // REMOTING
 
 namespace Quartz.Impl
 {
@@ -62,9 +63,9 @@ namespace Quartz.Impl
         /// returns true if the given JobGroup
         /// is paused
         /// </summary>
-        /// <param name="groupName"></param>
-        /// <returns></returns>
-        public virtual Task<bool> IsJobGroupPaused(string groupName)
+        public virtual Task<bool> IsJobGroupPaused(
+            string groupName,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.IsJobGroupPaused(groupName));
         }
@@ -73,9 +74,9 @@ namespace Quartz.Impl
         /// returns true if the given TriggerGroup
         /// is paused
         /// </summary>
-        /// <param name="groupName"></param>
-        /// <returns></returns>
-        public virtual Task<bool> IsTriggerGroupPaused(string groupName)
+        public virtual Task<bool> IsTriggerGroupPaused(
+            string groupName,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.IsTriggerGroupPaused(groupName));
         }
@@ -105,14 +106,26 @@ namespace Quartz.Impl
         /// </para>
         /// </summary>
         /// <returns></returns>
-        public virtual Task<SchedulerMetaData> GetMetaData()
+        public virtual Task<SchedulerMetaData> GetMetaData(CancellationToken cancellationToken = default)
         {
-            return CallInGuard(x => Task.FromResult(new SchedulerMetaData(SchedulerName, SchedulerInstanceId, GetType(), true, IsStarted, InStandbyMode,
-                                                          IsShutdown, x.RunningSince, x.NumJobsExecuted, x.JobStoreClass,
-                                                          x.SupportsPersistence, x.Clustered, x.ThreadPoolClass, x.ThreadPoolSize, x.Version)));
+            return CallInGuard(x => new SchedulerMetaData(
+                SchedulerName,
+                SchedulerInstanceId, GetType(),
+                true,
+                IsStarted,
+                InStandbyMode,
+                IsShutdown,
+                x.RunningSince,
+                x.NumJobsExecuted,
+                x.JobStoreClass,
+                x.SupportsPersistence,
+                x.Clustered,
+                x.ThreadPoolClass,
+                x.ThreadPoolSize,
+                x.Version));
         }
 
-        /// <summary> 
+        /// <summary>
         /// Returns the <see cref="SchedulerContext" /> of the <see cref="IScheduler" />.
         /// </summary>
         public virtual SchedulerContext Context
@@ -139,7 +152,8 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<IReadOnlyList<IJobExecutionContext>> GetCurrentlyExecutingJobs()
+        public virtual Task<IReadOnlyCollection<IJobExecutionContext>> GetCurrentlyExecutingJobs(
+            CancellationToken cancellationToken = default)
         {
             return Task.FromResult(ReadPropertyInGuard(x => x.CurrentlyExecutingJobs));
         }
@@ -147,7 +161,8 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<IReadOnlyList<string>> GetJobGroupNames()
+        public virtual Task<IReadOnlyCollection<string>> GetJobGroupNames(
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.GetJobGroupNames());
         }
@@ -155,7 +170,8 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<IReadOnlyList<string>> GetTriggerGroupNames()
+        public virtual Task<IReadOnlyCollection<string>> GetTriggerGroupNames(
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.GetTriggerGroupNames());
         }
@@ -164,7 +180,8 @@ namespace Quartz.Impl
         /// Get the names of all <see cref="ITrigger" /> groups that are paused.
         /// </summary>
         /// <value></value>
-        public virtual Task<ISet<string>> GetPausedTriggerGroups()
+        public virtual Task<IReadOnlyCollection<string>> GetPausedTriggerGroups(
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.GetPausedTriggerGroups());
         }
@@ -183,21 +200,21 @@ namespace Quartz.Impl
         /// <throws>  SchedulerException </throws>
         public virtual IJobFactory JobFactory
         {
-            set { throw new SchedulerException("Operation not supported for remote schedulers."); }
+            set => throw new SchedulerException("Operation not supported for remote schedulers.");
         }
 
-        /// <summary> 
+        /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task Start()
+        public virtual Task Start(CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.Start());
         }
 
-        /// <summary> 
+        /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public Task StartDelayed(TimeSpan delay)
+        public Task StartDelayed(TimeSpan delay, CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.StartDelayed(delay));
         }
@@ -223,7 +240,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task Standby()
+        public virtual Task Standby(CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.Standby());
         }
@@ -231,13 +248,14 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual async Task Shutdown()
+        public virtual Task Shutdown(CancellationToken cancellationToken = default)
         {
             try
             {
                 string schedulerName = SchedulerName;
-                await GetRemoteScheduler().Shutdown().ConfigureAwait(false);
+                GetRemoteScheduler().Shutdown();
                 SchedulerRepository.Instance.Remove(schedulerName);
+                return TaskUtil.CompletedTask;
             }
 #if REMOTING
             catch (RemotingException re)
@@ -252,7 +270,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task Shutdown(bool waitForJobsToComplete)
+        public virtual Task Shutdown(
+            bool waitForJobsToComplete,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.Shutdown(waitForJobsToComplete));
         }
@@ -260,7 +280,10 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger)
+        public virtual Task<DateTimeOffset> ScheduleJob(
+            IJobDetail jobDetail,
+            ITrigger trigger,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.ScheduleJob(jobDetail, trigger));
         }
@@ -268,7 +291,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<DateTimeOffset> ScheduleJob(ITrigger trigger)
+        public virtual Task<DateTimeOffset> ScheduleJob(
+            ITrigger trigger,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.ScheduleJob(trigger));
         }
@@ -276,7 +301,10 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task AddJob(IJobDetail jobDetail, bool replace)
+        public virtual Task AddJob(
+            IJobDetail jobDetail,
+            bool replace,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.AddJob(jobDetail, replace));
         }
@@ -284,27 +312,42 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task AddJob(IJobDetail jobDetail, bool replace, bool storeNonDurableWhileAwaitingScheduling)
+        public virtual Task AddJob(
+            IJobDetail jobDetail,
+            bool replace,
+            bool storeNonDurableWhileAwaitingScheduling,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.AddJob(jobDetail, replace, storeNonDurableWhileAwaitingScheduling));
         }
 
-        public virtual Task<bool> DeleteJobs(IList<JobKey> jobKeys)
+        public virtual Task<bool> DeleteJobs(
+            IReadOnlyCollection<JobKey> jobKeys,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.DeleteJobs(jobKeys));
         }
 
-        public virtual Task ScheduleJobs(IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, bool replace)
+        public virtual Task ScheduleJobs(
+            IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs,
+            bool replace,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.ScheduleJobs(triggersAndJobs, replace));
         }
 
-        public Task ScheduleJob(IJobDetail jobDetail, ISet<ITrigger> triggersForJob, bool replace)
+        public Task ScheduleJob(
+            IJobDetail jobDetail,
+            IReadOnlyCollection<ITrigger> triggersForJob,
+            bool replace,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.ScheduleJob(jobDetail, triggersForJob, replace));
         }
 
-        public virtual Task<bool> UnscheduleJobs(IList<TriggerKey> triggerKeys)
+        public virtual Task<bool> UnscheduleJobs(
+            IReadOnlyCollection<TriggerKey> triggerKeys,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.UnscheduleJobs(triggerKeys));
         }
@@ -312,7 +355,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<bool> DeleteJob(JobKey jobKey)
+        public virtual Task<bool> DeleteJob(
+            JobKey jobKey,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.DeleteJob(jobKey));
         }
@@ -320,7 +365,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<bool> UnscheduleJob(TriggerKey triggerKey)
+        public virtual Task<bool> UnscheduleJob(
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.UnscheduleJob(triggerKey));
         }
@@ -328,7 +375,10 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<DateTimeOffset?> RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger)
+        public virtual Task<DateTimeOffset?> RescheduleJob(
+            TriggerKey triggerKey,
+            ITrigger newTrigger,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.RescheduleJob(triggerKey, newTrigger));
         }
@@ -336,7 +386,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task TriggerJob(JobKey jobKey)
+        public virtual Task TriggerJob(
+            JobKey jobKey,
+            CancellationToken cancellationToken = default)
         {
             return TriggerJob(jobKey, null);
         }
@@ -344,7 +396,10 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task TriggerJob(JobKey jobKey, JobDataMap data)
+        public virtual Task TriggerJob(
+            JobKey jobKey,
+            JobDataMap data,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.TriggerJob(jobKey, data));
         }
@@ -352,7 +407,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task PauseTrigger(TriggerKey triggerKey)
+        public virtual Task PauseTrigger(
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.PauseTrigger(triggerKey));
         }
@@ -360,7 +417,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task PauseTriggers(GroupMatcher<TriggerKey> matcher)
+        public virtual Task PauseTriggers(
+            GroupMatcher<TriggerKey> matcher,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.PauseTriggers(matcher));
         }
@@ -368,7 +427,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task PauseJob(JobKey jobKey)
+        public virtual Task PauseJob(
+            JobKey jobKey,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.PauseJob(jobKey));
         }
@@ -376,7 +437,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task PauseJobs(GroupMatcher<JobKey> matcher)
+        public virtual Task PauseJobs(
+            GroupMatcher<JobKey> matcher,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.PauseJobs(matcher));
         }
@@ -384,7 +447,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task ResumeTrigger(TriggerKey triggerKey)
+        public virtual Task ResumeTrigger(
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.ResumeTrigger(triggerKey));
         }
@@ -392,7 +457,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task ResumeTriggers(GroupMatcher<TriggerKey> matcher)
+        public virtual Task ResumeTriggers(
+            GroupMatcher<TriggerKey> matcher,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.ResumeTriggers(matcher));
         }
@@ -400,7 +467,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task ResumeJob(JobKey jobKey)
+        public virtual Task ResumeJob(
+            JobKey jobKey,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.ResumeJob(jobKey));
         }
@@ -408,7 +477,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task ResumeJobs(GroupMatcher<JobKey> matcher)
+        public virtual Task ResumeJobs(
+            GroupMatcher<JobKey> matcher,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.ResumeJobs(matcher));
         }
@@ -416,7 +487,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task PauseAll()
+        public virtual Task PauseAll(CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.PauseAll());
         }
@@ -424,7 +495,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task ResumeAll()
+        public virtual Task ResumeAll(CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.ResumeAll());
         }
@@ -432,7 +503,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<ISet<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher)
+        public virtual Task<IReadOnlyCollection<JobKey>> GetJobKeys(
+            GroupMatcher<JobKey> matcher,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.GetJobKeys(matcher));
         }
@@ -440,7 +513,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<IReadOnlyList<ITrigger>> GetTriggersOfJob(JobKey jobKey)
+        public virtual Task<IReadOnlyCollection<ITrigger>> GetTriggersOfJob(
+            JobKey jobKey,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.GetTriggersOfJob(jobKey));
         }
@@ -448,7 +523,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<ISet<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher)
+        public virtual Task<IReadOnlyCollection<TriggerKey>> GetTriggerKeys(
+            GroupMatcher<TriggerKey> matcher,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.GetTriggerKeys(matcher));
         }
@@ -456,7 +533,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<IJobDetail> GetJobDetail(JobKey jobKey)
+        public virtual Task<IJobDetail> GetJobDetail(
+            JobKey jobKey,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.GetJobDetail(jobKey));
         }
@@ -464,7 +543,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<bool> CheckExists(JobKey jobKey)
+        public virtual Task<bool> CheckExists(
+            JobKey jobKey,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.CheckExists(jobKey));
         }
@@ -472,7 +553,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<bool> CheckExists(TriggerKey triggerKey)
+        public virtual Task<bool> CheckExists(
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.CheckExists(triggerKey));
         }
@@ -480,7 +563,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task Clear()
+        public virtual Task Clear(CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.Clear());
         }
@@ -488,7 +571,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<ITrigger> GetTrigger(TriggerKey triggerKey)
+        public virtual Task<ITrigger> GetTrigger(
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.GetTrigger(triggerKey));
         }
@@ -496,7 +581,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<TriggerState> GetTriggerState(TriggerKey triggerKey)
+        public virtual Task<TriggerState> GetTriggerState(
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.GetTriggerState(triggerKey));
         }
@@ -504,7 +591,12 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers)
+        public virtual Task AddCalendar(
+            string calName,
+            ICalendar calendar,
+            bool replace,
+            bool updateTriggers,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.AddCalendar(calName, calendar, replace, updateTriggers));
         }
@@ -512,7 +604,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<bool> DeleteCalendar(string calName)
+        public virtual Task<bool> DeleteCalendar(
+            string calName,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.DeleteCalendar(calName));
         }
@@ -520,7 +614,9 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<ICalendar> GetCalendar(string calName)
+        public virtual Task<ICalendar> GetCalendar(
+            string calName,
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.GetCalendar(calName));
         }
@@ -529,24 +625,24 @@ namespace Quartz.Impl
         /// Get the names of all registered <see cref="ICalendar"/>.
         /// </summary>
         /// <returns></returns>
-        public Task<IReadOnlyList<string>> GetCalendarNames()
+        public Task<IReadOnlyCollection<string>> GetCalendarNames(
+            CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.GetCalendarNames());
         }
 
-        public IListenerManager ListenerManager
-        {
-            get { throw new SchedulerException("Operation not supported for remote schedulers."); }
-        }
+        public IListenerManager ListenerManager => throw new SchedulerException("Operation not supported for remote schedulers.");
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual async Task<bool> Interrupt(JobKey jobKey)
+        public virtual Task<bool> Interrupt(
+            JobKey jobKey,
+            CancellationToken cancellationToken = default)
         {
             try
             {
-                return await GetRemoteScheduler().Interrupt(jobKey).ConfigureAwait(false);
+                return Task.FromResult(GetRemoteScheduler().Interrupt(jobKey));
             }
             catch (SchedulerException se)
             {
@@ -562,11 +658,13 @@ namespace Quartz.Impl
             }
         }
 
-        public async Task<bool> Interrupt(string fireInstanceId)
+        public Task<bool> Interrupt(
+            string fireInstanceId,
+            CancellationToken cancellationToken = default)
         {
             try
             {
-                return await GetRemoteScheduler().Interrupt(fireInstanceId).ConfigureAwait(false);
+                return Task.FromResult(GetRemoteScheduler().Interrupt(fireInstanceId));
             }
             catch (SchedulerException se)
             {
@@ -582,11 +680,12 @@ namespace Quartz.Impl
             }
         }
 
-        protected virtual async Task CallInGuard(Func<IRemotableQuartzScheduler, Task> action)
+        protected virtual Task CallInGuard(Action<IRemotableQuartzScheduler> action)
         {
             try
             {
-                await action(GetRemoteScheduler()).ConfigureAwait(false);
+                action(GetRemoteScheduler());
+                return TaskUtil.CompletedTask;
             }
 #if REMOTING
             catch (RemotingException re)
@@ -598,11 +697,11 @@ namespace Quartz.Impl
             }
         }
 
-        protected virtual async Task<T> CallInGuard<T>(Func<IRemotableQuartzScheduler, Task<T>> func)
+        protected virtual Task<T> CallInGuard<T>(Func<IRemotableQuartzScheduler, T> func)
         {
             try
             {
-                return await func(GetRemoteScheduler()).ConfigureAwait(false);
+                return Task.FromResult(func(GetRemoteScheduler()));
             }
 #if REMOTING
             catch (RemotingException re)
@@ -656,10 +755,6 @@ namespace Quartz.Impl
             rsched = null;
             SchedulerException ex = new SchedulerException(msg, cause);
             return ex;
-        }
-
-        public void Dispose()
-        {
         }
     }
 }

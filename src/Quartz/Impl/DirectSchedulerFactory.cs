@@ -1,6 +1,6 @@
 #region License
 /*
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy
@@ -69,52 +69,43 @@ namespace Quartz.Impl
 	/// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     /// <seealso cref="IJobStore" />
-	/// <seealso cref="ThreadPool" />
 	public class DirectSchedulerFactory : ISchedulerFactory
 	{
-		private readonly ILog log;
-        public const string DefaultInstanceId = "SIMPLE_NON_CLUSTERED";
+		public const string DefaultInstanceId = "SIMPLE_NON_CLUSTERED";
         public const string DefaultSchedulerName = "SimpleQuartzScheduler";
         private const int DefaultBatchMaxSize = 1;
         private readonly TimeSpan DefaultBatchTimeWindow = TimeSpan.Zero;
 
         private bool initialized;
-        private static readonly DirectSchedulerFactory instance = new DirectSchedulerFactory();
 
-        /// <summary>
+		/// <summary>
         /// Gets the log.
         /// </summary>
         /// <value>The log.</value>
-	    public ILog Log
-	    {
-	        get { return log; }
-	    }
+		private ILog Log { get; }
 
-	    /// <summary>
+		/// <summary>
 		/// Gets the instance.
 		/// </summary>
 		/// <value>The instance.</value>
-		public static DirectSchedulerFactory Instance
-		{
-			get { return instance; }
-		}
+		public static DirectSchedulerFactory Instance { get; } = new DirectSchedulerFactory();
 
 		/// <summary> <para>
 		/// Returns a handle to all known Schedulers (made by any
 		/// StdSchedulerFactory instance.).
 		/// </para>
 		/// </summary>
-		public virtual Task<IReadOnlyList<IScheduler>> AllSchedulers
+		public virtual Task<IReadOnlyList<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default)
 		{
-			get { return SchedulerRepository.Instance.LookupAll(); }
+			return SchedulerRepository.Instance.LookupAll(cancellationToken);
 		}
 
-        /// <summary>
+		/// <summary>
         /// Initializes a new instance of the <see cref="DirectSchedulerFactory"/> class.
         /// </summary>
 		protected DirectSchedulerFactory()
 		{
-		    log = LogProvider.GetLogger(GetType());
+		    Log = LogProvider.GetLogger(GetType());
 		}
 
 		/// <summary>
@@ -132,7 +123,7 @@ namespace Quartz.Impl
 
 		/// <summary>
 		/// Creates a proxy to a remote scheduler. This scheduler can be retrieved
-		/// via <see cref="DirectSchedulerFactory.GetScheduler()" />.
+		/// via <see cref="DirectSchedulerFactory.GetScheduler(CancellationToken)" />.
 		/// </summary>
 		/// <throws>  SchedulerException </throws>
 		public virtual void CreateRemoteScheduler(string proxyAddress)
@@ -143,7 +134,7 @@ namespace Quartz.Impl
 		/// <summary>
 		/// Same as <see cref="DirectSchedulerFactory.CreateRemoteScheduler(string)" />,
 		/// with the addition of specifying the scheduler name and instance ID. This
-		/// scheduler can only be retrieved via <see cref="DirectSchedulerFactory.GetScheduler(string)" />.
+		/// scheduler can only be retrieved via <see cref="DirectSchedulerFactory.GetScheduler(string, CancellationToken)" />.
 		/// </summary>
 		/// <param name="schedulerName">The name for the scheduler.</param>
 		/// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
@@ -357,7 +348,8 @@ namespace Quartz.Impl
 		/// </summary>
 		/// <returns></returns>
 		/// <throws>  SchedulerException </throws>
-		public virtual Task<IScheduler> GetScheduler()
+		public virtual Task<IScheduler> GetScheduler(
+			CancellationToken cancellationToken = default)
 		{
 			if (!initialized)
 			{
@@ -366,17 +358,19 @@ namespace Quartz.Impl
 			}
 			SchedulerRepository schedRep = SchedulerRepository.Instance;
 
-			return schedRep.Lookup(DefaultSchedulerName);
+			return schedRep.Lookup(DefaultSchedulerName, cancellationToken);
 		}
 
 		/// <summary>
 		/// Returns a handle to the Scheduler with the given name, if it exists.
 		/// </summary>
-		public virtual Task<IScheduler> GetScheduler(string schedName)
+		public virtual Task<IScheduler> GetScheduler(
+			string schedName,
+			CancellationToken cancellationToken = default)
 		{
 			SchedulerRepository schedRep = SchedulerRepository.Instance;
 
-			return schedRep.Lookup(schedName);
+			return schedRep.Lookup(schedName, cancellationToken);
 		}
 	}
 }

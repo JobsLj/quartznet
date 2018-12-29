@@ -1,8 +1,8 @@
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Listener;
 using Quartz.Logging;
-using Quartz.Util;
 
 namespace Quartz.Core
 {
@@ -11,9 +11,14 @@ namespace Quartz.Core
     /// </summary>
     internal class ErrorLogger : SchedulerListenerSupport
     {
-        public override Task SchedulerError(string msg, SchedulerException cause)
+        private readonly ILog log = LogProvider.GetLogger(typeof(ErrorLogger));
+
+        public override Task SchedulerError(
+            string msg,
+            SchedulerException cause,
+            CancellationToken cancellationToken = default)
         {
-            Log.ErrorException(msg, cause);
+            log.ErrorException(msg, cause);
             return TaskUtil.CompletedTask;
         }
     }
